@@ -1,0 +1,20 @@
+:root {
+  --page-bg: #f4f7fb;
+  --sidebar: #10233f;
+  --brand: #2873ed;
+  --text: #14243d;
+  --muted: #71809a;
+  --border: #e2e8f0;
+  --positive: #159c77;
+  --negative: #df5963;
+  --card: #fff;
+  --radius: 9px;
+  --topbar-height: 72px;
+  --el-color-primary: #2873ed;
+  --el-color-success: #159c77;
+  --el-color-danger: #df5963;
+  --el-border-color: #e2e8f0;
+  --el-border-radius-base: 5px;
+  --el-font-size-base: 12px;
+  --el-font-family: Arial, 'Microsoft YaHei', sans-serif;
+}
