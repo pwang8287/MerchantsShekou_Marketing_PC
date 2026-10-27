@@ -104,4 +104,22 @@ src/
 
 “材料”、`node_modules`、`dist` 和本地 `.env` 文件由 `.gitignore` 排除。`npm run export:mocks` 会自动创建本地“材料”目录并生成字典及样例 JSON。
 
-生产文件在 `dist/`，静态服务器需将业务路由回退到 `index.html`。此交付为本地项目，未发布外网。
+生产文件在 `dist/`，静态服务器需将业务路由回退到 `index.html`。
+
+
+## GitHub Actions 与公网发布
+
+工作流 `.github/workflows/deploy-pages.yml` 在推送到 `main` 或手动触发时，安装依赖、执行 ESLint / 数据与图表测试、严格类型检查并构建，随后部署到 GitHub Pages。
+
+- 公网地址：https://pwang8287.github.io/MerchantsShekou_Marketing_PC/
+- 九宫格页面：https://pwang8287.github.io/MerchantsShekou_Marketing_PC/#/multi-analysis-2
+- 构建使用仓库名作为资源子路径，Pages 下使用 hash 路由，保证刷新及直接访问子页面可用；本地开发保持 history 路由。
+- Actions 使用 Node.js 22；公网演示使用模拟数据，不需要配置密钥。
+- Pages 发布源需设为 GitHub Actions。部署日志见仓库 Actions 的 `Deploy dashboard to GitHub Pages`。
+- 只发布 `dist/`，不发布“材料”、依赖、源文件及本地环境配置。
+
+本地验证 Pages 构建：
+
+```bash
+VITE_ROUTER_MODE=hash VITE_USE_MOCK=true npm run build -- --base=/MerchantsShekou_Marketing_PC/
+```
