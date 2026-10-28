@@ -30,6 +30,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const kpiDetailVisible = ref(false);
   const kpiDetailContext = shallowRef<KpiDrillContext | null>(null);
   const detailTitle = ref('');
+  const detailChannel = ref('');
   const detailRows = ref<MarketingPerformanceMetric[]>([]);
   async function load() {
     if (loading.value) return;
@@ -62,9 +63,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     };
     kpiDetailVisible.value = true;
   }
-  function drill(title: string, records = filtered.value) {
+  function drill(title: string, records = filtered.value, channel = '') {
     kpiDetailVisible.value = false;
     detailTitle.value = title;
+    detailChannel.value = channel;
     detailRows.value = records;
     drawer.value = true;
   }
@@ -83,6 +85,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     kpiDetailContext,
     openKpiDetail,
     detailTitle,
+    detailChannel,
     detailRows,
     load,
     query,

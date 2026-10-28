@@ -1,5 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import type { GridPoint, GridResult, GridThresholds, NineGridKind } from '../../types/nineGrid';
+import type { BubbleSizeMetric } from '../../utils/dealCycle';
 import { fmt } from '../../utils/metrics';
 import { bubblePalette, bubbleColor } from '../themes/bubbles';
 const escape = (s: string) =>
@@ -14,6 +15,7 @@ export function nineGridOption(
   selectedCell: string,
   selectedName: string,
   showLabels: boolean,
+  sizeMetric: BubbleSizeMetric = 'current',
 ): EChartsOption {
   const advisor = kind === 'advisor',
     yThreshold = advisor ? thresholds.conversion : thresholds.cost;
@@ -29,7 +31,10 @@ export function nineGridOption(
   const xs = [-xExtent, -thresholds.x, thresholds.x, xExtent],
     ys = [yExtent, yThreshold, -yThreshold, -yExtent];
   const groups = [...new Set(result.points.map((p) => p.group))];
-  const maxAmount = Math.max(...result.points.map((p) => p.current.amount), 1);
+  const maxAmount = Math.max(
+    ...result.points.map((p) => (sizeMetric === 'cycle' ? (p.dealCycle ?? 0) : p.current.amount)),
+    1,
+  );
   const colors = { good: '#F0FAF6', risk: '#FFF3F5', neutral: '#F1F5FF' };
   const axisStyle = {
     axisLine: { show: false },
@@ -83,7 +88,7 @@ export function nineGridOption(
         const data = (input as { data: { point?: GridPoint } }).data;
         const p = data?.point;
         if (!p) return '点击分区筛选该区对象';
-        return `<b>${escape(p.name)}</b><br/>${escape(p.cell.name)} · ${escape(p.group)}<br/>签约套数：${fmt(p.current.contracts)} / 比较期 ${fmt(p.previous.contracts)}<br/>签约量变化：${fmt(p.x, 1)}%<br/>${advisor ? '到访转签约率变化' : '单套获客成本变化'}：${fmt(p.y, 1)} ${advisor ? '个百分点' : '%'}<br/>${advisor ? '到访转签约率：' + fmt((p.current.contracts / p.current.visits) * 100, 1) + '%' : '单套获客成本：' + fmt(p.current.acquisition) + ' 元/套'}<br/>签约金额：${fmt(p.current.amount)} 万元<br/><span style="color:#71809a">点击查看指标与客户来源明细</span>`;
+        return `<b>${escape(p.name)}</b><br/>${escape(p.cell.name)} · ${escape(p.group)}<br/>签约套数：${fmt(p.current.contracts)} / 比较期 ${fmt(p.previous.contracts)}<br/>签约量变化：${fmt(p.x, 1)}%<br/>${advisor ? '到访转签约率变化' : '单套获客成本变化'}：${fmt(p.y, 1)} ${advisor ? '个百分点' : '%'}<br/>${advisor ? '到访转签约率：' + fmt((p.current.contracts / p.current.visits) * 100, 1) + '%' : '单套获客成本：' + fmt(p.current.acquisition) + ' 元/套'}<br/>签约金额：${fmt(p.current.amount)} 万元<br/>成交周期（模拟）：${p.dealCycle === null ? '—' : fmt(p.dealCycle, 1) + ' 天'}<br/><span style="color:#71809a">点击查看指标与客户来源明细</span>`;
       },
     },
     series: [
@@ -156,7 +161,7 @@ export function nineGridOption(
           .filter((p) => p.group === group)
           .map((p) => ({
             name: p.name,
-            value: [p.x, p.y, p.current.amount],
+            value: [p.x, p.y, sizeMetric === 'cycle' ? (p.dealCycle ?? 0) : p.current.amount],
             point: { ...p, records: [] },
             itemStyle: {
               opacity: selectedCell && p.cell.id !== selectedCell ? 0.15 : 0.86,

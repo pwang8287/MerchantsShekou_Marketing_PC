@@ -22,6 +22,7 @@ export interface GridPoint {
   x: number;
   y: number;
   cell: GridCell;
+  dealCycle: number | null;
   current: Summary;
   previous: Summary;
   records: MarketingPerformanceMetric[];

@@ -59,6 +59,11 @@ function exportAll() {
         <router-link to="/marketing-analysis">营销分析</router-link>
         <router-link to="/multi-analysis">多维分析</router-link>
         <router-link to="/multi-analysis-2">多维分析2</router-link>
+        <router-link
+          to="/marketing-six-forces"
+          :class="{ 'router-link-active': route.path.startsWith('/marketing-six-forces') }"
+          >营销六力</router-link
+        >
       </nav>
       <div class="header-actions">
         <el-button

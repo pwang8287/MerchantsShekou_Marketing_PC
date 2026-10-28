@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useDashboardStore } from '../../stores/dashboard';
 import { groupRows, fmt, summarize } from '../../utils/metrics';
 import MetricTable from '../tables/MetricTable.vue';
+import ChannelFunnel from '../dashboard/ChannelFunnel.vue';
 import { exportCsv } from '../../utils/export';
 const store = useDashboardStore();
 const summary = computed(() => summarize(store.detailRows));
@@ -61,6 +62,11 @@ function exportDetails() {
         <span>获客成本（元/套）</span><strong>{{ fmt(summary.acquisition) }}</strong>
       </div>
     </div>
+    <ChannelFunnel
+      v-if="store.detailChannel"
+      :channel="store.detailChannel"
+      :rows="store.detailRows"
+    />
     <MetricTable
       :rows="channels"
       title="渠道贡献"

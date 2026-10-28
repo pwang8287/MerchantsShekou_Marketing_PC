@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import NineGridPanel from './components/NineGridPanel.vue';
+import ProjectScoreBubble from './components/ProjectScoreBubble.vue';
 import { useDashboardStore } from '../../stores/dashboard';
 import { splitAdvisorRecords } from '../../mocks/advisors';
 import type { CompareMode, GridThresholds } from '../../types/nineGrid';
@@ -104,6 +105,7 @@ const advisorRows = computed(() =>
     :mode="mode"
     :thresholds="thresholds"
   />
+  <ProjectScoreBubble />
   <el-alert
     v-if="mock"
     title="顾问数据为虚构演示：每项目 4 位顾问，分配后业绩合计与项目数据一致。"

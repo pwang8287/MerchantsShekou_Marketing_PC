@@ -16,6 +16,7 @@ interface Point {
   value: number | number[];
   seriesType: string;
   percent?: number;
+  data?: { dealCycle?: number | null };
 }
 const escape = (value: string) =>
   value.replace(
@@ -109,7 +110,7 @@ export function withContext(
             return `<div class="donut-tooltip-title">${escape(p.name)}</div><div class="donut-tooltip-period">${period.join(' 至 ')}</div><div class="donut-tooltip-row"><span>客户数量</span><strong>${fmt(Number(p.value))} ${escape(actualUnit)}</strong></div><div class="donut-tooltip-row"><span>占比</span><strong>${p.percent === undefined ? '—' : fmt(p.percent, 1) + '%'}</strong></div><div class="donut-tooltip-row"><span>同比</span><strong class="${trendClass(yoy)}">${trendLabel(yoy)}</strong></div><div class="donut-tooltip-row"><span>环比</span><strong class="${trendClass(mom)}">${trendLabel(mom)}</strong></div>`;
           }
           if (Array.isArray(p.value))
-            return `${escape(p.name)}<br/>获客成本：${fmt(p.value[0])} 元/套<br/>签约转化率：${fmt(p.value[1], 1)}%<br/>签约金额：${fmt(p.value[2])} 万元<br/>${comparison}`;
+            return `${escape(p.name)}<br/>获客成本：${fmt(p.value[0])} 元/套<br/>签约转化率：${fmt(p.value[1], 1)}%<br/>签约金额：${fmt(p.value[2])} 万元<br/>${p.data?.dealCycle === undefined ? '' : '成交周期（模拟）：' + (p.data.dealCycle === null ? '—' : fmt(p.data.dealCycle, 1) + ' 天') + '<br/>'}${comparison}`;
           return `${escape(p.seriesType === 'pie' || p.seriesType === 'funnel' ? p.name : p.seriesName)}：${fmt(Number(p.value), 1)} ${escape(actualUnit)}${p.percent !== undefined ? ' · 占比 ' + p.percent + '%' : ''}<br/>${p.seriesName.includes('去年同期') ? '<span style="color:#71809A;font-size:10px">上年同月基数</span>' : comparison}`;
         });
         return header + lines.join('<br/>');

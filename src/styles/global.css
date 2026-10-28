@@ -1995,3 +1995,12 @@ b {
     flex-direction: column;
   }
 }
+
+/* 气泡图大小指标选择，与同页图表操作保持同一行。 */
+.nine-grid-head {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.nine-grid-actions {
+  flex-wrap: wrap;
+}

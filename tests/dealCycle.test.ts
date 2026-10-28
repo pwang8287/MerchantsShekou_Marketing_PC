@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { simulatedDealCycle } from '../src/utils/dealCycle';
+import { records } from '../src/mocks/data';
+import { splitAdvisorRecords } from '../src/mocks/advisors';
+import { buildNineGrid } from '../src/utils/nineGrid';
+import { nineGridOption } from '../src/charts/options/nineGrid';
+import { buildProjectScoreBubbles } from '../src/utils/projectScoreBubble';
+import { scatterOption } from '../src/charts/options';
+import { groupRows } from '../src/utils/metrics';
+import type { DashboardFilter } from '../src/types';
+const filter: DashboardFilter = { organization: '', region: '', city: '', project: '', channel: '', customer: '', basis: '签约口径', period: ['2026-01', '2026-09'] };
+const current = records.filter((r) => r.period >= filter.period[0] && r.period <= filter.period[1]);
+const close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8);
+assert.equal(simulatedDealCycle([]), null);
+assert.equal(simulatedDealCycle([{ ...records[0], contracts: 0 }]), null);
+const a = { ...records[0], contracts: 1 }, b = { ...records[1], contracts: 3 };
+close(simulatedDealCycle([a, b])!, (simulatedDealCycle([a])! + 3 * simulatedDealCycle([b])!) / 4);
+assert.equal(simulatedDealCycle([a, b]), simulatedDealCycle([b, a]));
+close(simulatedDealCycle(current)!, simulatedDealCycle(splitAdvisorRecords(current))!);
+const thresholds = { x: 5, cost: 3, conversion: 3, minContracts: 10 };
+for (const kind of ['channel', 'project', 'advisor'] as const) {
+  const result = buildNineGrid(kind === 'advisor' ? splitAdvisorRecords(records) : records, filter, kind, 'yoy', thresholds, 'object');
+  const currentOption = nineGridOption(result, kind, thresholds, '', '', false) as any;
+  const cycleOption = nineGridOption(result, kind, thresholds, '', '', false, 'cycle') as any;
+  assert.ok(result.points.length > 0);
+  result.points.forEach((p) => {
+    close(p.dealCycle!, simulatedDealCycle(p.records)!);
+    assert.ok(p.dealCycle! >= 12 && p.dealCycle! <= 90);
+    const find = (option: any) => option.series.flatMap((s: any) => s.data).find((d: any) => d.name === p.name);
+    assert.deepEqual(find(currentOption).value.slice(0, 2), find(cycleOption).value.slice(0, 2));
+    assert.equal(find(currentOption).value[2], p.current.amount);
+    assert.equal(find(cycleOption).value[2], p.dealCycle);
+  });
+}
+for (const p of buildProjectScoreBubbles(current)) close(p.dealCycle!, simulatedDealCycle(current.filter((r) => r.project === p.name))!);
+const groups = groupRows(current, 'project');
+const oldScatter = scatterOption(groups) as any, cycleScatter = scatterOption(groups, 'cycle') as any;
+assert.deepEqual(oldScatter.series.map((s: any) => s.data), cycleScatter.series.map((s: any) => s.data));
+assert.notDeepEqual(oldScatter.series.map((s: any) => s.symbolSize), cycleScatter.series.map((s: any) => s.symbolSize));
+console.log('通过：成交周期加权、零签约、顾问拆分守恒、各气泡大小切换及横纵坐标不变。');

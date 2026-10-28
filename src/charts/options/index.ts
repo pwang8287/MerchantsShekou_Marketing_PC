@@ -1,3 +1,5 @@
+import { simulatedDealCycle } from '../../utils/dealCycle';
+import type { BubbleSizeMetric } from '../../utils/dealCycle';
 import { donutTooltip } from './donutTooltip';
 import type { EChartsOption } from 'echarts';
 import type { AggregateRow, MarketingPerformanceMetric, MetricKey } from '../../types';
@@ -245,8 +247,13 @@ export function donutOption(
     ],
   };
 }
-export function scatterOption(groups: AggregateRow[]): EChartsOption {
-  const max = Math.max(...groups.map((r) => r.amount), 1);
+export function scatterOption(
+  groups: AggregateRow[],
+  sizeMetric: BubbleSizeMetric = 'current',
+): EChartsOption {
+  const cycle = (r: AggregateRow) => simulatedDealCycle(r.records);
+  const size = (r: AggregateRow) => (sizeMetric === 'cycle' ? (cycle(r) ?? 0) : r.amount);
+  const max = Math.max(...groups.map(size), 1);
   return {
     color: palette,
     tooltip: {
@@ -262,12 +269,13 @@ export function scatterOption(groups: AggregateRow[]): EChartsOption {
     series: groups.map((r, i) => ({
       name: r.name,
       type: 'scatter',
-      symbolSize: 18 + Math.sqrt(r.amount / max) * 30,
+      symbolSize: size(r) ? 18 + Math.sqrt(size(r) / max) * 30 : 0,
       itemStyle: { color: palette[i % palette.length], opacity: 0.8 },
       data: [
         {
           name: r.name,
           value: [Math.round(r.acquisition), Number(r.conversion.toFixed(2)), r.amount],
+          dealCycle: cycle(r),
         },
       ],
     })),

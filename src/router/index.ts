@@ -21,6 +21,16 @@ export default createRouter({
       component: () => import('../views/MultiAnalysis2/index.vue'),
       meta: { title: '多维分析2' },
     },
+    {
+      path: '/marketing-six-forces',
+      component: () => import('../views/MarketingSixForces/index.vue'),
+      meta: { title: '营销六力' },
+    },
+    {
+      path: '/marketing-six-forces/project/:project',
+      component: () => import('../views/MarketingSixForces/ProjectDetail.vue'),
+      meta: { title: '项目营销六力详情' },
+    },
     { path: '/:pathMatch(.*)*', redirect: '/marketing-analysis' },
   ],
 });

@@ -2,9 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import { Download, RefreshRight } from '@element-plus/icons-vue';
 import BaseChart from '../../../charts/components/BaseChart.vue';
+import BubbleSizeSelector from '../../../components/common/BubbleSizeSelector.vue';
 import { nineGridOption } from '../../../charts/options/nineGrid';
 import { bubbleColor, channelColors } from '../../../charts/themes/bubbles';
 import { buildNineGrid, filterGridByChannel } from '../../../utils/nineGrid';
+import type { BubbleSizeMetric } from '../../../utils/dealCycle';
 import { fmt } from '../../../utils/metrics';
 import { exportCsv } from '../../../utils/export';
 import { useDashboardStore } from '../../../stores/dashboard';
@@ -24,6 +26,7 @@ const selectedCell = ref('');
 const selectedName = ref('');
 const showLabels = ref(false);
 const showTable = ref(false);
+const sizeMetric = ref<BubbleSizeMetric>('current');
 const activeChannel = ref('');
 const advisor = computed(() => props.kind === 'advisor');
 const baseResult = computed(() =>
@@ -70,6 +73,7 @@ const option = computed(() =>
     selectedCell.value,
     selectedName.value,
     showLabels.value,
+    sizeMetric.value,
   ),
 );
 const selected = computed(() => result.value.points.find((p) => p.name === selectedName.value));
@@ -102,6 +106,7 @@ function reset() {
   selectedCell.value = '';
   selectedName.value = '';
   showLabels.value = false;
+  sizeMetric.value = 'current';
   chart.value?.reset();
 }
 function drill(p: GridPoint) {
@@ -119,6 +124,7 @@ function download() {
       '比较期签约套数',
       '签约量变化（%）',
       advisor.value ? '到访转签约率变化（百分点）' : '单套获客成本变化（%）',
+      '成交周期（模拟，天）',
     ],
     listed.value.map((p) => [
       p.name,
@@ -129,6 +135,7 @@ function download() {
       p.previous.contracts,
       p.x.toFixed(2),
       p.y.toFixed(2),
+      p.dealCycle ?? '',
     ]),
   );
 }
@@ -167,7 +174,7 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
     <div class="nine-grid-meta">
       <span>本期 {{ store.filter.period.join(' 至 ') }}</span
       ><span>比较期 {{ result.previousPeriod.join(' 至 ') }}</span
-      ><span>气泡面积：签约金额</span
+      ><span>气泡面积：{{ sizeMetric === 'cycle' ? '成交周期（模拟，天）' : '签约金额' }}</span
       ><el-popover v-if="result.excluded.length" placement="bottom" :width="340" trigger="click"
         ><template #reference
           ><button class="excluded-trigger">
@@ -182,6 +189,7 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
         </div></el-popover
       >
     </div>
+    <BubbleSizeSelector v-model="sizeMetric" current-label="签约金额" />
     <div v-if="kind === 'channel'" class="channel-legend" role="group" aria-label="渠道大类图例">
       <button
         class="channel-legend-all"
@@ -258,6 +266,12 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
             >
             <dl>
               <div>
+                <dt>成交周期（模拟）</dt>
+                <dd>
+                  {{ selected.dealCycle === null ? '—' : fmt(selected.dealCycle, 1) + ' 天' }}
+                </dd>
+              </div>
+              <div>
                 <dt>签约金额</dt>
                 <dd>{{ fmt(selected.current.amount) }} 万元</dd>
               </div>
@@ -322,7 +336,7 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
           ? '转化率 = 签约套数 / 到访组数，变化按百分点计算。'
           : '单套获客成本 = 营销费用 × 10000 / 签约套数（元/套）。'
       }}
-      分界线为演示参数；点击背景分区或右侧宫格筛选，点击气泡查看指标。
+      成交周期为首次留资至签约的模拟天数，按签约套数加权；周期越长气泡越大。分界线为演示参数；点击背景分区或右侧宫格筛选，点击气泡查看指标。
     </div>
     <div v-if="showTable" class="nine-grid-table">
       <el-table :data="listed" max-height="360" size="small" @row-click="drill"
@@ -347,6 +361,10 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
               >{{ row.cell.name }}</el-tag
             ></template
           ></el-table-column
+        ><el-table-column label="成交周期（模拟，天）" min-width="160" align="right"
+          ><template #default="{ row }">{{
+            row.dealCycle === null ? '—' : fmt(row.dealCycle, 1)
+          }}</template></el-table-column
         ><el-table-column
           prop="current.amount"
           label="签约金额（万元）"

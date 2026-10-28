@@ -45,6 +45,7 @@ const contextualOption = computed(() =>
         />
       </div>
     </header>
+    <slot name="above-chart" />
     <BaseChart
       ref="chart"
       :option="contextualOption"

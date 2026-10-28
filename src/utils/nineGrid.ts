@@ -7,6 +7,7 @@ import type {
   GridThresholds,
   NineGridKind,
 } from '../types/nineGrid';
+import { simulatedDealCycle } from './dealCycle';
 import { change, divide, filterRows, previousPeriod, shiftPeriod, summarize } from './metrics';
 export function gridCells(kind: NineGridKind): GridCell[] {
   const advisor = kind === 'advisor';
@@ -166,6 +167,7 @@ export function buildNineGrid(
         kind === 'advisor' ? thresholds.conversion : thresholds.cost,
         kind,
       ),
+      dealCycle: simulatedDealCycle(currentRecords),
       current: c,
       previous: p,
       records: currentRecords,

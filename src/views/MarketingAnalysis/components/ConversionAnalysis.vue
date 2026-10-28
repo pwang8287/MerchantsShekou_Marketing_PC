@@ -8,7 +8,7 @@ import { groupRows, fmt, divide } from '../../../utils/metrics';
 import type { AggregateRow, ConversionFunnelStage } from '../../../types';
 const store = useDashboardStore();
 function drillChannel(row: AggregateRow) {
-  store.drill(row.name + ' · 渠道客户', row.records);
+  store.drill(row.name + ' · 渠道客户', row.records, row.name);
 }
 const channels = computed(() => groupRows(store.filtered, 'channel'));
 const funnel = computed(() => funnelOption(store.filtered));
@@ -43,6 +43,7 @@ const stages = computed<ConversionFunnelStage[]>(() => {
               store.drill(
                 name + ' · 渠道明细',
                 store.filtered.filter((r) => r.channel === name),
+                name,
               )
           "
         />
