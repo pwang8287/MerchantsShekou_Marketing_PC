@@ -42,12 +42,14 @@ export function useDashboard() {
       {
         key: 'completion',
         label: '销售目标完成率',
-        value: fmt(s.completion, 1),
+        value: s.target ? fmt(s.completion, 1) : '—',
         unit: '%',
-        yoy: change(s.completion, y.completion),
-        mom: change(s.completion, p.completion),
+        yoy: s.target && y.target ? change(s.completion, y.completion) : NaN,
+        mom: s.target && p.target ? change(s.completion, p.completion) : NaN,
         progress: s.completion,
-        note: `目标差额 ${fmt(Math.max(s.target - s.amount, 0) / 10000, 2)} 亿元`,
+        note: s.target
+          ? `目标差额 ${fmt(Math.max(s.target - s.amount, 0) / 10000, 2)} 亿元`
+          : '未设置销售目标',
       },
     ];
   });

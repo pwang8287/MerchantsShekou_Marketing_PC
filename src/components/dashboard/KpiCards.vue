@@ -13,10 +13,7 @@ const icons = [Money, House, Wallet, Aim];
       class="kpi-card"
       :class="{ selected: store.selectedKpi === k.key }"
       :disabled="!store.filtered.length || !!store.error"
-      @click="
-        store.selectedKpi = k.key;
-        store.drill(k.label + ' · 项目明细');
-      "
+      @click="store.openKpiDetail(k.key)"
     >
       <div class="kpi-label">
         <span class="kpi-icon"

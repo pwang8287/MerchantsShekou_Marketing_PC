@@ -5,6 +5,7 @@ import { ArrowDown, Download, RefreshRight, InfoFilled } from '@element-plus/ico
 import { useDashboardStore } from '../stores/dashboard';
 import GlobalFilters from '../components/filters/GlobalFilters.vue';
 import DetailDrawer from '../components/common/DetailDrawer.vue';
+import KpiDetailDrawer from '../components/dashboard/KpiDetailDrawer.vue';
 import { exportCsv } from '../utils/export';
 import { groupRows } from '../utils/metrics';
 const store = useDashboardStore();
@@ -112,6 +113,7 @@ function exportAll() {
         >
       </footer>
     </main>
+    <KpiDetailDrawer v-if="store.kpiDetailContext" :context="store.kpiDetailContext" />
     <DetailDrawer /><el-dialog v-model="help" title="平台与数据口径" width="560px"
       ><p>招商蛇口客户营销分析 PC 端数据看板，覆盖营销经营、客户转化、营销效率与多维分析。</p>
       <el-descriptions :column="1" border

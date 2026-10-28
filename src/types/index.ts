@@ -36,8 +36,9 @@ export interface MarketingPerformanceMetric {
   contracts: number;
   fee: number;
 }
+export type KpiKey = 'amount' | 'contracts' | 'collection' | 'completion';
 export interface KpiMetric {
-  key: string;
+  key: KpiKey;
   label: string;
   value: string;
   unit: string;

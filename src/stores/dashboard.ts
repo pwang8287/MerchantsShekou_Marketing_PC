@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
 import { getDashboard } from '../api/dashboard';
-import type { DashboardFilter, MarketingPerformanceMetric } from '../types';
+import type { KpiDrillContext } from '../types/kpiDrilldown';
+import type { DashboardFilter, KpiKey, MarketingPerformanceMetric } from '../types';
 import { filterRows, summarize } from '../utils/metrics';
 export const defaultFilter = (): DashboardFilter => ({
   organization: '',
@@ -26,6 +27,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const filtered = computed(() => filterRows(rows.value, filter.value));
   const summary = computed(() => summarize(filtered.value));
   const drawer = ref(false);
+  const kpiDetailVisible = ref(false);
+  const kpiDetailContext = shallowRef<KpiDrillContext | null>(null);
   const detailTitle = ref('');
   const detailRows = ref<MarketingPerformanceMetric[]>([]);
   async function load() {
@@ -49,7 +52,18 @@ export const useDashboardStore = defineStore('dashboard', () => {
     await load();
     if (!error.value) filter.value = structuredClone(next);
   }
+  function openKpiDetail(key: KpiKey) {
+    selectedKpi.value = key;
+    drawer.value = false;
+    kpiDetailContext.value = {
+      key,
+      filter: JSON.parse(JSON.stringify(filter.value)),
+      rows: rows.value,
+    };
+    kpiDetailVisible.value = true;
+  }
   function drill(title: string, records = filtered.value) {
+    kpiDetailVisible.value = false;
     detailTitle.value = title;
     detailRows.value = records;
     drawer.value = true;
@@ -65,6 +79,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
     updatedAt,
     selectedKpi,
     drawer,
+    kpiDetailVisible,
+    kpiDetailContext,
+    openKpiDetail,
     detailTitle,
     detailRows,
     load,
