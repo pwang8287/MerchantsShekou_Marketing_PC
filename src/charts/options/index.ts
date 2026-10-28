@@ -1,3 +1,4 @@
+import { donutTooltip } from './donutTooltip';
 import type { EChartsOption } from 'echarts';
 import type { AggregateRow, MarketingPerformanceMetric, MetricKey } from '../../types';
 import { axis, palette } from '../themes/default';
@@ -200,11 +201,18 @@ export function efficiencyTrend(rows: MarketingPerformanceMetric[]): EChartsOpti
     ],
   };
 }
-export function donutOption(groups: AggregateRow[]): EChartsOption {
+export function donutOption(
+  groups: AggregateRow[],
+  {
+    showLegend = true,
+    colorForName,
+  }: { showLegend?: boolean; colorForName?: (name: string) => string } = {},
+): EChartsOption {
   return {
-    color: palette,
-    tooltip: { trigger: 'item', formatter: '{b}<br/>{c} 组 · 占比 {d}%' },
+    color: colorForName ? groups.map((r) => colorForName(r.name)) : palette,
+    tooltip: donutTooltip(),
     legend: {
+      show: showLegend,
       orient: 'vertical',
       right: 12,
       top: 'middle',
@@ -216,19 +224,23 @@ export function donutOption(groups: AggregateRow[]): EChartsOption {
     graphic: [
       {
         type: 'text',
-        left: '27%',
-        top: '43%',
+        left: showLegend ? '27%' : 'center',
+        top: showLegend ? '43%' : 'middle',
         style: { text: '客户结构', fontSize: 13, fill: '#14243D' },
       },
     ],
     series: [
       {
         type: 'pie',
-        center: ['38%', '50%'],
+        center: [showLegend ? '38%' : '50%', '50%'],
         radius: [48, 74],
         label: { show: false },
         itemStyle: { borderColor: '#fff', borderWidth: 3 },
-        data: groups.map((r) => ({ name: r.name, value: r.leads })),
+        data: groups.map((r) => ({
+          name: r.name,
+          value: r.leads,
+          ...(colorForName ? { itemStyle: { color: colorForName(r.name) } } : {}),
+        })),
       },
     ],
   };

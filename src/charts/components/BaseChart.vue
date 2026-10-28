@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import type { EChartsOption } from 'echarts';
+import { configureChartTooltip } from '../options/donutTooltip';
 const props = withDefaults(
   defineProps<{
     option: EChartsOption;
@@ -23,7 +24,7 @@ function render() {
     chart = echarts.init(host.value);
     chart.on('click', (params) => emit('select', params.name));
   }
-  chart.setOption(props.option, true);
+  chart.setOption(configureChartTooltip(props.option, host.value!), true);
   chart.resize();
 }
 onMounted(() => {
@@ -42,7 +43,7 @@ onBeforeUnmount(() => {
 });
 function reset() {
   chart?.dispatchAction({ type: 'restore' });
-  chart?.setOption(props.option, true);
+  chart?.setOption(configureChartTooltip(props.option, host.value!), true);
 }
 function download(includeLegend = false) {
   if (!chart) return;
@@ -55,7 +56,7 @@ function download(includeLegend = false) {
     a.download = '营销分析图表.png';
     a.click();
   } finally {
-    if (includeLegend) chart.setOption(props.option, true);
+    if (includeLegend) chart.setOption(configureChartTooltip(props.option, host.value!), true);
   }
 }
 defineExpose({ reset, download });

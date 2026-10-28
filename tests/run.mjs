@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const dir = await mkdtemp(join(tmpdir(), 'marketing-check-'));
 try {
-  for (const name of ['metrics', 'nineGrid', 'channels']) {
+  for (const name of ['metrics', 'nineGrid', 'channels', 'donutTooltip']) {
     const outfile = join(dir, name + '.cjs');
     await build({
       entryPoints: ['tests/' + name + '.test.ts'],

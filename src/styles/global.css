@@ -674,6 +674,26 @@ b {
 .channel-table {
   min-width: 0;
 }
+.channel-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.channel-color-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 2px;
+}
+.channel-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .subpanel-heading {
   display: flex;
   align-items: center;
@@ -1831,4 +1851,35 @@ b {
     align-items: flex-start;
     gap: 5px;
   }
+}
+
+.dashboard-donut-tooltip .donut-tooltip-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #14243d;
+  line-height: 1.5;
+}
+.dashboard-donut-tooltip .donut-tooltip-period {
+  font-size: 11px;
+  color: #8a97ab;
+  border-bottom: 1px solid #edf1f5;
+  padding-bottom: 8px;
+  margin: 3px 0 5px;
+}
+.dashboard-donut-tooltip .donut-tooltip-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.dashboard-donut-tooltip .donut-tooltip-row > span {
+  color: #71809a;
+  white-space: nowrap;
+}
+.dashboard-donut-tooltip .donut-tooltip-row > strong {
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

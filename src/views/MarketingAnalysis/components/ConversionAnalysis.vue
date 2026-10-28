@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import ChartPanel from '../../../components/common/ChartPanel.vue';
 import { useDashboardStore } from '../../../stores/dashboard';
+import { bubbleColor } from '../../../charts/themes/bubbles';
 import { funnelOption, donutOption } from '../../../charts/options';
 import { groupRows, fmt, divide } from '../../../utils/metrics';
 import type { AggregateRow, ConversionFunnelStage } from '../../../types';
@@ -11,7 +12,9 @@ function drillChannel(row: AggregateRow) {
 }
 const channels = computed(() => groupRows(store.filtered, 'channel'));
 const funnel = computed(() => funnelOption(store.filtered));
-const structure = computed(() => donutOption(channels.value));
+const structure = computed(() =>
+  donutOption(channels.value, { showLegend: false, colorForName: bubbleColor }),
+);
 const stages = computed<ConversionFunnelStage[]>(() => {
   const s = store.summary;
   return [
@@ -49,12 +52,18 @@ const stages = computed<ConversionFunnelStage[]>(() => {
             <span>点击渠道查看客户来源</span>
           </div>
           <el-table :data="channels" size="small" @row-click="drillChannel"
-            ><el-table-column
-              prop="name"
-              label="渠道"
-              min-width="92"
-              show-overflow-tooltip
-            /><el-table-column prop="leads" label="线索" min-width="65" align="right"
+            ><el-table-column prop="name" label="渠道" min-width="110" show-overflow-tooltip
+              ><template #default="{ row }"
+                ><span class="channel-name-cell"
+                  ><i
+                    class="channel-color-swatch"
+                    :style="{ backgroundColor: bubbleColor(row.name) }"
+                    aria-hidden="true"
+                  ></i
+                  ><span class="channel-name-text">{{ row.name }}</span></span
+                ></template
+              ></el-table-column
+            ><el-table-column prop="leads" label="线索" min-width="65" align="right"
               ><template #default="{ row }">{{ fmt(row.leads) }}</template></el-table-column
             ><el-table-column prop="amount" label="签约金额" min-width="90" align="right"
               ><template #default="{ row }">{{ fmt(row.amount) }}</template></el-table-column
