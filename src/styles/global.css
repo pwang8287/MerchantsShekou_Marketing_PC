@@ -660,19 +660,39 @@ b {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
   min-width: 0;
   border-right: 1px solid #edf1f5;
   padding-right: 20px;
 }
 .channel-donut {
+  display: flex;
+  flex-direction: column;
   padding-top: 2px;
+}
+.channel-donut > .panel-head {
+  flex: none;
+}
+.channel-donut > .chart-root {
+  flex: none;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 .channel-donut .chart-tools {
   display: none;
 }
 .channel-table {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+}
+.channel-table > .subpanel-heading {
+  flex: none;
+}
+.channel-table > .el-table {
+  flex: none;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 .channel-name-cell {
   display: inline-flex;
