@@ -112,3 +112,24 @@ const missing = matrixReplayPoints(snapshot, [], chosen.name);
 assert.ok(!missing.some((point) => point.name === chosen.name));
 assert.equal(missing.length, snapshot.length - 1);
 console.log('通过：回放仅替换选中气泡，其他气泡位置、大小数据保持末月快照，缺失月份不虚构移动点。');
+
+// 回归检查稀疏渠道和月初场景，避免顾问分配权重退回重复模板。
+let sampledPoints = 0;
+let duplicatedPoints = 0;
+for (const month of ['2025-01', '2025-11', '2026-01', '2026-11']) {
+  for (const day of ['04', '28']) {
+    for (const channel of ['', ...new Set(records.map((row) => row.channel))]) {
+      const sample = buildAdvisorReceptionMatrix(rows, {
+        ...historyFilter,
+        channel,
+        period: [month, month],
+        metricDateRange: [month + '-01', month + '-' + day],
+      });
+      const coordinates = sample.points.map((point) => `${point.x}|${point.y}`);
+      sampledPoints += coordinates.length;
+      duplicatedPoints += coordinates.length - new Set(coordinates).size;
+    }
+  }
+}
+assert.ok(duplicatedPoints / sampledPoints < 0.12, '模拟顾问坐标应保持足够差异，避免重复分配模板');
+console.log('通过：不同月份、月初和渠道筛选下的顾问模拟坐标差异检查。');
