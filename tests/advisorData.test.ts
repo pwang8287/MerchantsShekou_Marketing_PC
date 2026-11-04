@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { records } from '../src/mocks/data';
-import { buildAdvisorDataRows } from '../src/utils/advisorData';
+import { buildAdvisorDataRows, buildAdvisorProjectRows } from '../src/utils/advisorData';
 import { filterRows, summarize } from '../src/utils/metrics';
 import { selectKpiDateRows } from '../src/utils/kpiDaily';
 import { buildCustomerStructure } from '../src/utils/customerStructure';
@@ -77,3 +77,14 @@ for (const range of [
 }
 assert.deepEqual(buildAdvisorDataRows([], filter), []);
 console.log('通过：顾问排名与明细同源、部分月份/季度/年度项目总额守恒、顾问范围及零分母。');
+
+const sharedRows = records.filter((row) => row.period === '2026-11').map((row) => ({ ...row, advisor: '跨项目顾问', advisorId: 'shared-advisor' }));
+const allFilter = { ...filter, project: '' };
+const shared = buildAdvisorProjectRows(sharedRows, allFilter);
+assert.equal(shared.length, new Set(sharedRows.map((row) => row.project)).size);
+assert.ok(shared.every((row) => row.name === '跨项目顾问' && new Set(row.records.map((record) => record.project)).size === 1));
+const expected = summarize(filterRows(sharedRows, allFilter));
+assert.equal(shared.reduce((sum, row) => sum + row.contracts, 0), expected.contracts);
+assert.equal(shared.reduce((sum, row) => sum + row.amount, 0), expected.amount);
+assert.equal(shared.reduce((sum, row) => sum + row.visitPeople, 0), expected.visitPeople);
+console.log('通过：同一顾问跨多个项目独立成行、项目范围隔离、签约/金额/接待人数加总守恒。');

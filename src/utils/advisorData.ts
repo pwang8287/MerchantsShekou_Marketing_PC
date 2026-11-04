@@ -4,6 +4,15 @@ import { filterRows, groupRows } from './metrics';
 import { kpiDateRange, selectKpiDateRows } from './kpiDaily';
 import { projectDataRates, type ProjectDataRow } from './projectDataTable';
 
+// 每个顾问在每个项目独立成行，避免跨项目销售记录被合并。
+export function buildAdvisorProjectRows(
+  rows: MarketingPerformanceMetric[],
+  filter: DashboardFilter,
+): ProjectDataRow[] {
+  const projects = [...new Set(filterRows(rows, filter).map((row) => row.project))];
+  return projects.flatMap((project) => buildAdvisorDataRows(rows, { ...filter, project }));
+}
+
 // 先按日期截取事实再分配顾问，确保任意自定义日期下的合计与项目指标一致。
 export function buildAdvisorDataRows(
   rows: MarketingPerformanceMetric[],

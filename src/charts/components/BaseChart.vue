@@ -11,33 +11,77 @@ const props = withDefaults(
     error?: string;
     height?: number;
     unit?: string;
+    transition?: boolean;
+    pinnedTooltip?: { seriesId: string; dataIndex: number };
   }>(),
-  { loading: false, empty: false, error: '', height: 190, unit: '' },
+  { loading: false, empty: false, error: '', height: 190, unit: '', transition: false },
 );
 const emit = defineEmits<{ select: [name: string]; retry: [] }>();
 const host = ref<HTMLDivElement>();
 let chart: echarts.ECharts | undefined;
 let observer: ResizeObserver | undefined;
+let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
+let hadPinnedTooltip = false;
+function showPinnedTooltip() {
+  if (!chart || !props.pinnedTooltip) return;
+  const series = Array.isArray(props.option.series) ? props.option.series : [props.option.series];
+  const seriesIndex = series.findIndex((item) => item?.id === props.pinnedTooltip?.seriesId);
+  if (seriesIndex >= 0)
+    chart.dispatchAction({
+      type: 'showTip',
+      seriesIndex,
+      dataIndex: props.pinnedTooltip.dataIndex,
+    });
+}
 function render() {
   if (!host.value) return;
   if (!chart) {
     chart = echarts.init(host.value);
     chart.on('click', (params) => emit('select', params.name));
   }
-  chart.setOption(configureChartTooltip(props.option, host.value!), true);
+  if (tooltipTimer !== undefined) {
+    clearTimeout(tooltipTimer);
+    tooltipTimer = undefined;
+  }
+  // 清除上一次定位，等待本次位置动画完成后再显示，避免新数据配上旧坐标。
+  if (props.pinnedTooltip || hadPinnedTooltip) chart.dispatchAction({ type: 'hideTip' });
+  const configured = configureChartTooltip(props.option, host.value!);
+  const deferTooltip = props.transition && !!props.pinnedTooltip;
+  const option =
+    deferTooltip && configured.tooltip && !Array.isArray(configured.tooltip)
+      ? { ...configured, tooltip: { ...configured.tooltip, show: false } }
+      : configured;
+  chart.setOption(option, {
+    notMerge: !props.transition,
+    ...(props.transition ? { replaceMerge: ['series'] } : {}),
+  });
   chart.resize();
+  if (props.pinnedTooltip) {
+    hadPinnedTooltip = true;
+    const duration = props.option.animationDurationUpdate;
+    const delay = props.transition ? (typeof duration === 'number' ? duration : 800) + 50 : 0;
+    tooltipTimer = setTimeout(() => {
+      tooltipTimer = undefined;
+      if (deferTooltip && chart && props.pinnedTooltip && configured.tooltip) {
+        chart.setOption({ tooltip: configured.tooltip });
+      }
+      showPinnedTooltip();
+    }, delay);
+  } else if (hadPinnedTooltip) {
+    hadPinnedTooltip = false;
+  }
 }
 onMounted(() => {
   render();
-  observer = new ResizeObserver(() => chart?.resize());
+  observer = new ResizeObserver(() => {
+    chart?.resize();
+    if (tooltipTimer === undefined) showPinnedTooltip();
+  });
   if (host.value) observer.observe(host.value);
 });
-watch(
-  () => props.option,
-  () => nextTick(render),
-  { deep: true },
-);
+watch([() => props.option, () => props.pinnedTooltip], () => nextTick(render), { deep: true });
 onBeforeUnmount(() => {
+  if (tooltipTimer !== undefined) clearTimeout(tooltipTimer);
   observer?.disconnect();
   chart?.dispose();
 });

@@ -12,6 +12,9 @@ import { selectOrganizationFilter } from '../../utils/organizationFilter';
 const store = useDashboardStore();
 const router = useRouter();
 const route = useRoute();
+const isMultiAnalysis = computed(() =>
+  ['/multi-analysis', '/multi-analysis-2'].includes(route.path),
+);
 const isProjectPage = computed(() => route.name === 'project-marketing-detail');
 const projectSearch = ref('');
 const projectSearchInput = ref<InputInstance>();
@@ -43,6 +46,7 @@ const selectedOrganization = computed({
   get: () => draft.organizationLabel || draft.organization || organizationTree.name,
   set: (value: string) => {
     const next = selectOrganizationFilter(JSON.parse(JSON.stringify(draft)), value);
+    next.channel = draft.channel;
     Object.assign(draft, next);
     const marketingPage =
       route.path === '/marketing-analysis' || !!store.cityScope || !!store.projectScope;
@@ -64,7 +68,6 @@ function clearExtraConditions() {
     region: '',
     city: '',
     project: '',
-    channel: '',
     channelObject: '',
     channelDetail: '',
     customer: '',
@@ -98,6 +101,13 @@ const quarter = computed({
     commitPeriod();
   },
 });
+watch(
+  isMultiAnalysis,
+  (visible) => {
+    if (visible && draft.periodType !== 'month') changeType('month');
+  },
+  { immediate: true },
+);
 function apply() {
   clearExtraConditions();
   syncPeriod();
@@ -150,9 +160,10 @@ function reset() {
           :value="project"
         />
       </el-select>
-      <el-form-item class="period-field" label="统计周期">
+      <el-form-item class="period-field" :label="isMultiAnalysis ? '' : '统计周期'">
         <div class="statistics-controls" :title="draft.metricDateRange?.join(' 至 ')">
           <el-radio-group
+            v-if="!isMultiAnalysis"
             :model-value="draft.periodType || 'custom'"
             class="statistics-type-switch"
             aria-label="统计周期类型"
@@ -164,7 +175,7 @@ function reset() {
             ><el-radio-button value="custom">自定义</el-radio-button>
           </el-radio-group>
           <el-date-picker
-            v-if="draft.periodType === 'month'"
+            v-if="isMultiAnalysis || draft.periodType === 'month'"
             v-model="draft.periodAnchor"
             type="month"
             format="YYYY年MM月"
@@ -215,7 +226,7 @@ function reset() {
           />
         </div>
       </el-form-item>
-      <div class="filter-actions">
+      <div v-if="!isMultiAnalysis" class="filter-actions">
         <el-button
           v-if="!route.path.startsWith('/marketing-analysis')"
           type="primary"
@@ -231,6 +242,29 @@ function reset() {
   </section>
 </template>
 <style scoped>
+.filter-panel {
+  border-radius: 0;
+  height: 56px;
+  min-height: 56px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+}
+.filter-form {
+  width: 100%;
+  --el-component-size: 36px;
+}
+.filter-form :deep(.el-select__wrapper),
+.filter-form :deep(.el-input__wrapper),
+.filter-form :deep(.el-date-editor),
+.filter-form :deep(.el-button),
+.project-filter-form .project-return {
+  height: 36px;
+  min-height: 36px;
+  box-sizing: border-box;
+}
 .project-filter-form .project-return {
   display: inline-flex;
   align-items: center;
@@ -263,30 +297,49 @@ function reset() {
   flex-wrap: wrap;
 }
 .statistics-type-switch {
+  height: 36px;
   display: inline-flex;
   flex-wrap: nowrap;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 5px;
-  background: #f1f5f9;
+  gap: 0;
+  padding: 0;
+  border-radius: 6px;
+  background: #fff;
+}
+.statistics-type-switch :deep(.el-radio-button + .el-radio-button) {
+  margin-left: -1px;
 }
 .statistics-type-switch :deep(.el-radio-button__inner) {
-  border: 0 !important;
-  border-radius: 4px !important;
-  background: transparent;
+  height: 36px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 0 !important;
+  background: #fff;
   box-shadow: none !important;
-  min-width: 42px;
-  padding: 5px 12px;
+  min-width: 44px;
+  padding: 7px 14px;
   font-size: 12px;
   line-height: 16px;
-  color: #64748b;
+  color: #7b8aa3;
+}
+.statistics-type-switch :deep(.el-radio-button:first-child .el-radio-button__inner) {
+  border-radius: 6px 0 0 6px !important;
+}
+.statistics-type-switch :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-radius: 0 6px 6px 0 !important;
 }
 .statistics-type-switch :deep(.el-radio-button__inner:hover) {
-  color: #168bff;
+  color: #1677ff;
+}
+.statistics-type-switch :deep(.el-radio-button.is-active) {
+  z-index: 1;
 }
 .statistics-type-switch :deep(.el-radio-button.is-active .el-radio-button__inner) {
-  color: #168bff;
-  background: #e3eeff;
+  color: #1677ff;
+  border-color: #1677ff !important;
+  background: #f3f7ff;
   font-weight: 500;
 }
 </style>

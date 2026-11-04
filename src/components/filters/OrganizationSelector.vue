@@ -96,12 +96,13 @@ function choose(name: string) {
 </template>
 <style scoped>
 .organization-trigger {
-  height: 38px;
+  height: 36px;
+  box-sizing: border-box;
   min-width: 196px;
   padding: 0 14px;
   border: 1px solid #86a9f6;
   border-radius: 6px;
-  background: #fff;
+  background: #f3f7ff;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -112,7 +113,7 @@ function choose(name: string) {
 .organization-trigger:hover,
 .organization-trigger.open {
   border-color: #5484f5;
-  background: #f8faff;
+  background: #f3f7ff;
 }
 .organization-trigger > .el-icon {
   font-size: 17px;
