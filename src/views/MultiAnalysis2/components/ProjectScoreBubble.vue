@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import type { EChartsOption } from 'echarts';
-import { Download, RefreshRight } from '@element-plus/icons-vue';
+import { Download } from '@element-plus/icons-vue';
 import BaseChart from '../../../charts/components/BaseChart.vue';
 import BubbleSizeSelector from '../../../components/common/BubbleSizeSelector.vue';
 import { useDashboardStore } from '../../../stores/dashboard';
@@ -16,7 +16,6 @@ import { fmt } from '../../../utils/metrics';
 import { exportCsv } from '../../../utils/export';
 const store = useDashboardStore();
 const router = useRouter();
-const chart = ref<InstanceType<typeof BaseChart>>();
 const points = computed(() => buildProjectScoreBubbles(store.filtered));
 const grid = computed(() => projectScoreGrid(points.value));
 const plottable = computed(() => grid.value.points);
@@ -50,14 +49,6 @@ function select(name: string) {
     selectedName.value = name;
     selectedCell.value = '';
   }
-}
-function reset() {
-  selectedCell.value = '';
-  selectedName.value = '';
-  activeStatus.value = '';
-  showLabels.value = false;
-  sizeMetric.value = 'current';
-  chart.value?.reset();
 }
 function download() {
   exportCsv(
@@ -257,19 +248,7 @@ function openProject(name: string) {
           >{{ showTable ? '收起' : '查看' }}明细</el-button
         ><el-button size="small" :icon="Download" :disabled="!listed.length" @click="download"
           >导出</el-button
-        ><el-button
-          text
-          :icon="RefreshRight"
-          title="重置图表"
-          aria-label="重置项目得分图"
-          @click="reset"
-        /><el-button
-          text
-          :icon="Download"
-          title="下载图表 PNG"
-          aria-label="下载项目得分气泡图"
-          @click="chart?.download()"
-        />
+        >
       </div>
     </header>
     <div class="nine-grid-meta">
@@ -302,7 +281,6 @@ function openProject(name: string) {
     </div>
     <div class="nine-grid-body">
       <BaseChart
-        ref="chart"
         :option="option"
         :height="440"
         :empty="!shown.length"

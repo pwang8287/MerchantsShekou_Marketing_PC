@@ -76,3 +76,35 @@ const html = tooltip.formatter({
 assert.ok(html.includes('自然到访') && html.includes('123 组') && html.includes('12.3%'));
 assert.ok(html.includes('donut-tooltip-row') && html.includes('同比') && html.includes('环比'));
 console.log('通过：环形图提示框左右换边、上下避让、屏幕边界、独立浮层及表格色块一致性。');
+
+// 渠道成本柱状图：提示框独立挂载，并在屏幕边缘换边，不被卡片裁切。
+import { efficiencyOption } from '../src/charts/options';
+import { placeFloatingTooltip } from '../src/charts/options/donutTooltip';
+const costOption = configureChartTooltip(withContext(efficiencyOption(records), records, filter, '元/套', ''), host);
+const costTooltip = costOption.tooltip as any;
+assert.equal(costTooltip.appendTo, 'body');
+assert.equal(costTooltip.confine, false);
+assert.equal(costTooltip.renderMode, 'html');
+assert.equal(typeof costTooltip.formatter, 'function');
+for (const point of [[0,0],[5,250],[1300,650],[800,300]]) {
+  const result = placeFloatingTooltip({left:30,top:200,right:500,bottom:500},point,{width:420,height:160},{width:1440,height:900});
+  assert.ok(result[0]>=12 && result[1]>=12);
+  assert.ok(result[0]+420<=1428 && result[1]+160<=888);
+}
+const movedHost = {...host,getBoundingClientRect:()=>({left:1200,top:700,right:1400,bottom:900})};
+const moved = configureChartTooltip(costOption,movedHost).tooltip as any;
+const position = moved.position([150,100],{},null,null,{contentSize:[420,160],viewSize:[200,200]});
+assert.ok(position[0]<0 && position[1]<100,'允许提示框越过图表边界向视口内避让');
+assert.ok(position[0]+1200>=12 && position[0]+1200+420<=1428);
+console.log('通过：渠道获客成本提示框挂载body、保持内容、左右及底部换边、视口边界避让。');
+
+import { barOption } from '../src/charts/options';
+const ranking = configureChartTooltip(withContext(barOption(groupRows(records,'project')),records,filter,'万元','签约金额 · 万元'),movedHost);
+const rankingTooltip = ranking.tooltip as any;
+assert.equal(rankingTooltip.appendTo,'body');
+assert.equal(rankingTooltip.confine,false);
+const rankingPosition = rankingTooltip.position([20,100],{},null,null,{contentSize:[420,160],viewSize:[200,200]});
+assert.ok(rankingPosition[0]+1200>=12 && rankingPosition[0]+1200+420<=1428);
+assert.ok(rankingPosition[1]+700>=12 && rankingPosition[1]+700+160<=888);
+assert.ok(rankingTooltip.formatter({name:records[0].project,seriesName:'签约金额',seriesType:'bar',value:100}).includes('同比'));
+console.log('通过：销售业绩排名复用浮层定位，屏幕右侧及底部不裁切且保留同环比内容。');

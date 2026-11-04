@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { ArrowDown, Download, RefreshRight, InfoFilled } from '@element-plus/icons-vue';
+import { Download, RefreshRight } from '@element-plus/icons-vue';
 import { useDashboardStore } from '../stores/dashboard';
 import GlobalFilters from '../components/filters/GlobalFilters.vue';
 import DetailDrawer from '../components/common/DetailDrawer.vue';
@@ -10,6 +10,21 @@ import { exportCsv } from '../utils/export';
 import { groupRows } from '../utils/metrics';
 const store = useDashboardStore();
 const route = useRoute();
+watch(
+  () => route.fullPath,
+  () => {
+    const company =
+      route.name === 'city-marketing-detail'
+        ? route.params.organization
+        : route.name === 'project-marketing-detail'
+          ? route.query.company
+          : '';
+    store.setCityScope(typeof company === 'string' ? company : '');
+    const project = route.name === 'project-marketing-detail' ? route.params.project : '';
+    store.setProjectScope(typeof project === 'string' ? project : '');
+  },
+  { immediate: true, flush: 'sync' },
+);
 const title = computed(() => String(route.meta.title || '营销分析'));
 const online = ref(navigator.onLine);
 const help = ref(false);
@@ -51,21 +66,44 @@ function exportAll() {
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <div class="header-brand" aria-label="招商蛇口">
-        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div><strong>招商蛇口</strong><small>CHINA MERCHANTS SHEKOU</small></div>
-      </div>
+      <router-link class="header-brand" to="/marketing-analysis" aria-label="营销力分析首页">
+        <span class="brand-symbol" aria-hidden="true"
+          ><svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M2 12h4l3-9 5 18 3-9h5" /></svg
+        ></span>
+        <strong>营销力分析</strong>
+      </router-link>
       <nav class="page-tabs" aria-label="页面导航">
-        <router-link to="/marketing-analysis">营销分析</router-link>
-        <router-link to="/multi-analysis">多维分析</router-link>
-        <router-link to="/multi-analysis-2">多维分析2</router-link>
         <router-link
-          to="/marketing-six-forces"
-          :class="{ 'router-link-active': route.path.startsWith('/marketing-six-forces') }"
-          >营销六力</router-link
+          to="/marketing-analysis"
+          :class="{ 'router-link-active': route.path.startsWith('/marketing-analysis') }"
+          >首页</router-link
         >
+        <router-link to="/multi-analysis-2">多维分析</router-link>
       </nav>
       <div class="header-actions">
+        <span class="header-updated"
+          >数据更新时间 <b>{{ store.updatedAt.split(' ')[0] || '加载中' }}</b></span
+        >
+        <button
+          class="header-help"
+          aria-label="平台与数据口径"
+          title="平台与数据口径"
+          @click="help = true"
+        >
+          ?
+        </button>
+      </div>
+    </header>
+    <GlobalFilters
+      ><template #actions>
         <el-button
           text
           :icon="RefreshRight"
@@ -81,21 +119,10 @@ function exportAll() {
           aria-label="导出报表"
           title="导出报表"
           @click="exportAll"
-        />
-        <el-dropdown @command="help = true">
-          <button class="user-menu">
-            <span>营销管理中心</span><el-icon><ArrowDown /></el-icon>
-          </button>
-          <template #dropdown
-            ><el-dropdown-menu
-              ><el-dropdown-item command="help">平台与数据口径</el-dropdown-item></el-dropdown-menu
-            ></template
-          >
-        </el-dropdown>
-      </div>
-    </header>
+        /> </template
+    ></GlobalFilters>
     <main class="dashboard-content" :aria-label="title">
-      <GlobalFilters /><el-alert
+      <el-alert
         v-if="!online"
         title="网络已断开，当前展示最近加载的数据。网络恢复后可刷新重试。"
         type="warning"
@@ -112,10 +139,7 @@ function exportAll() {
           v-else
       /></template>
       <footer class="page-footer">
-        <span>招商蛇口 · 客户营销分析平台</span
-        ><span
-          ><el-icon><InfoFilled /></el-icon> 本页面使用模拟数据，仅供产品演示</span
-        >
+        <span>招商蛇口 · 客户营销分析平台</span>
       </footer>
     </main>
     <KpiDetailDrawer v-if="store.kpiDetailContext" :context="store.kpiDetailContext" />
@@ -124,12 +148,14 @@ function exportAll() {
       <el-descriptions :column="1" border
         ><el-descriptions-item label="数据来源"
           >本地确定性模拟数据，不代表真实经营情况</el-descriptions-item
-        ><el-descriptions-item label="金额单位">万元；指标卡展示为亿元</el-descriptions-item
+        ><el-descriptions-item label="金额单位"
+          >金额按万元或亿元展示；线索组数、到访人数与认购/签约套数分别统计</el-descriptions-item
         ><el-descriptions-item label="转化率">签约套数 / 线索组数</el-descriptions-item
         ><el-descriptions-item label="对比口径"
-          >同比为上年同期间，环比为前一个等长期间；缺失时显示无可比数据</el-descriptions-item
+          >月、季、年按自然周期统计，当前周期截止当天；月度同比为上年同月对应进度，环比为上月对应进度；季度、年度卡片仅展示同比。自定义按所选起止日期统计。</el-descriptions-item
         ><el-descriptions-item label="可用期间"
-          >2025 年 1 月至 2026 年 12 月；默认展示 2026 年前三季度</el-descriptions-item
+          >2025 年 1 月至 2026 年 12
+          月；默认范围为本月1日至机器当天，卡片累计为所选日期区间</el-descriptions-item
         ></el-descriptions
       ><template #footer><el-button @click="help = false">关闭</el-button></template></el-dialog
     >

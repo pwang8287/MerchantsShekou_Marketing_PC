@@ -57,7 +57,7 @@ const option = computed(() => donutOption(groups.value));
         "
       >
         <span>{{ p.name }}</span
-        ><strong>{{ fmt(p.amount) }}</strong
+        ><strong>{{ fmt(p.amount, 2) }}</strong
         ><span class="positive">{{ fmt(p.conversion, 1) }}%</span>
       </button>
     </div>

@@ -9,7 +9,9 @@ import {
   kpiValue,
   kpiSummaryCards,
   kpiFactColumns,
+  kpiDefinitions,
 } from '../src/utils/kpiDrilldown';
+import { kpiDateRange, selectKpiDateRows } from '../src/utils/kpiDaily';
 import { fmt, summarize } from '../src/utils/metrics';
 import type { KpiKey, MarketingPerformanceMetric } from '../src/types';
 import type { KpiDrillContext, KpiDrillStep } from '../src/types/kpiDrilldown';
@@ -28,11 +30,11 @@ for (const key of ['amount', 'contracts', 'collection', 'completion'] as KpiKey[
   assert.equal(root.totals.value, kpiValue(store.summary, key));
   assert.equal(
     kpiSummaryCards(root, key)[0].value,
-    kpis.value.find((k) => k.key === key)!.value,
+    fmt(kpiValue(root.current, key)! / (key === 'amount' || key === 'collection' ? 10000 : 1), key === 'amount' || key === 'collection' ? 2 : key === 'completion' ? 1 : 0),
     'drawer and selected card must reconcile',
   );
   const columns = kpiColumns(key);
-  assert.equal(columns[0].label, kpis.value.find((k) => k.key === key)!.label);
+  assert.equal(columns[0].label, kpiDefinitions[key].label);
   assert.ok(kpiFactColumns(key).some((c) => c.key === 'value'));
   for (let depth = 0; depth < 4; depth++) {
     const view = buildKpiDrilldown(context, path);
@@ -133,7 +135,7 @@ assert.equal(noTarget.children[0].values.value, null);
 assert.equal(kpiSummaryCards(noTarget, 'completion')[0].value, '—');
 store.rows = [row('c', '无目标项目', 0, 10)];
 store.filter = context.filter;
-assert.equal(kpis.value.find((k) => k.key === 'completion')!.value, '—');
+assert.equal(kpiValue(store.summary, 'completion'), null);
 assert.equal(kpiValue(summarize(context.rows), 'collection'), 5);
 assert.equal(
   fmt(buildKpiDrilldown({ ...context, key: 'amount' }, []).totals.value! / 10000, 2),
@@ -166,3 +168,49 @@ for (const key of ['amount', 'contracts', 'collection', 'completion'] as KpiKey[
     ),
   );
 }
+
+store.rows = records;
+store.filter = { ...defaultFilter(), metricDate: '2026-10-30', period: ['2026-01', '2026-10'] };
+assert.deepEqual(kpis.value.map((k)=>k.label), ['线索数量','到访人数','认购套数','签约套数']);
+for (const card of kpis.value) {
+  for (const mode of ['yesterday','cumulative'] as const) {
+    store.openKpiDetail(card.key,mode);
+    const detail=buildKpiDrilldown(store.kpiDetailContext!,[]);
+    assert.equal(kpiSummaryCards(detail,card.key)[0].value,mode==='yesterday'?card.yesterday:card.value);
+    assert.equal(detail.totals.value,kpiValue(summarize(selectKpiDateRows(records,store.filter,kpiDateRange(store.filter,mode))),card.key));
+    assert.equal(detail.children.reduce((sum,r)=>sum+(r.values.value||0),0),detail.totals.value);
+    assert.ok(detail.currentRecords.every((r)=>!!r.rangeLabel));
+  }
+}
+const southFilter = { ...store.filter, organizationNames: ['深圳公司','广州公司'], organizationLabel:'南部城市群' };
+const south = selectKpiDateRows(records,southFilter,kpiDateRange(southFilter,'cumulative'));
+assert.ok(south.length>0 && south.every((r)=>southFilter.organizationNames.includes(r.organization)));
+console.log('通过：线索、人数、认购套数、签约套数四卡昨日/累计与明细逐级对账，城市群筛选。');
+
+const contractCard=kpis.value.find((k)=>k.key==='contracts')!;
+const annualTarget=summarize(selectKpiDateRows(records,store.filter,{start:'2026-01-01',end:'2026-12-31',mode:'cumulative'})).target;
+assert.equal(contractCard.annualTarget,annualTarget);
+assert.ok(Math.abs(contractCard.progress-(contractCard.signedAmount! / annualTarget*100))<1e-8);
+store.rows=records.map((r)=>({...r,target:0}));
+assert.equal(kpis.value.find((k)=>k.key==='contracts')!.progress,0);
+assert.equal(kpis.value.find((k)=>k.key==='contracts')!.annualTarget,0);
+console.log('通过：年度签约达成率使用全年金额目标，随筛选计算，零目标不产生无穷值。');
+
+// 起止日期默认遵循运行机器本地日历，并且重置时重新计算。
+const machine = new Date();
+const today = `${machine.getFullYear()}-${String(machine.getMonth()+1).padStart(2,'0')}-${String(machine.getDate()).padStart(2,'0')}`;
+assert.deepEqual(defaultFilter().metricDateRange,[today.slice(0,7)+'-01',today]);
+store.rows=records;
+store.filter={...defaultFilter(),metricDate:'2026-10-20',metricDateRange:['2026-10-10','2026-10-20'],period:['2026-10','2026-10']};
+const ranged=kpiDateRange(store.filter,'cumulative');
+assert.deepEqual(ranged,{start:'2026-10-10',end:'2026-10-20',mode:'cumulative'});
+const rangeSummary=summarize(selectKpiDateRows(records,store.filter,ranged));
+assert.equal(store.summary.amount,rangeSummary.amount);
+assert.equal(store.summary.contracts,rangeSummary.contracts);
+const annualProgress=kpis.value.find((k)=>k.key==='contracts')!.progress;
+const periodContracts=kpis.value.find((k)=>k.key==='contracts')!.value;
+store.filter.metricDateRange=['2026-10-01','2026-10-20'];
+assert.equal(kpis.value.find((k)=>k.key==='contracts')!.progress,annualProgress,'annual progress independent of selected start date');
+assert.notEqual(kpis.value.find((k)=>k.key==='contracts')!.value,periodContracts);
+assert.equal(kpiDateRange({...store.filter,metricDateRange:['2026-10-01','2026-10-01']},'yesterday').end,'2026-09-30');
+console.log('通过：默认机器本月1日至当天、起止日期逐日过滤、区间累计与年度进度分离及跨月昨日。');

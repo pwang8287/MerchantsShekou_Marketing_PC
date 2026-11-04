@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 import { useDashboardStore } from '../../stores/dashboard';
-import { fmt, trendLabel } from '../../utils/metrics';
-import { exportCsv } from '../../utils/export';
+import { fmt } from '../../utils/metrics';
+import ComparisonBadge from '../common/ComparisonBadge.vue';
+import { statisticsPeriodPrefix } from '../../utils/statisticsPeriod';
 import {
   buildKpiDrilldown,
   formatKpiCell,
@@ -33,7 +34,7 @@ const contextLabel = computed(() => {
       (!f.channelDetail || r.channelDetailId === f.channelDetail),
   );
   return [
-    f.organization || '全部组织',
+    f.organizationLabel || f.organization || '全部组织',
     f.region,
     f.city,
     f.project,
@@ -61,7 +62,11 @@ const pagedRows = computed(() =>
 const sourceRows = computed(() =>
   view.value.currentRecords
     .slice((page.value - 1) * pageSize.value, page.value * pageSize.value)
-    .map((r) => ({ ...r, values: kpiFactValues(r, props.context.key) })),
+    .map((r) => ({
+      ...r,
+      rangeLabel: r.rangeLabel || r.period,
+      values: kpiFactValues(r, props.context.key),
+    })),
 );
 const rowCount = computed(() =>
   tab.value === 'breakdown' ? view.value.children.length : view.value.currentRecords.length,
@@ -89,64 +94,42 @@ function navigate(depth: number) {
   path.value = path.value.slice(0, depth);
   tab.value = depth >= 4 ? 'source' : 'breakdown';
 }
-function back() {
-  if (path.value.length) navigate(path.value.length - 1);
-  else store.kpiDetailVisible = false;
-}
 function totals() {
   return [
     '本层合计（全部页）',
-    ...columns.value.map((column) => formatKpiCell(view.value.totals[column.key], column)),
+    ...columns.value.map((column) =>
+      ['yoy', 'mom'].includes(column.key)
+        ? h(ComparisonBadge, {
+            value: view.value.totals[column.key],
+            unit: column.unit === 'pct' ? 'pct' : '%',
+          })
+        : formatKpiCell(view.value.totals[column.key], column),
+    ),
   ];
 }
 function onSort(value: { prop: string; order: string | null }) {
   sort.value = { key: value.prop?.replace('values.', '') || 'value', order: value.order };
   page.value = 1;
 }
-function download() {
-  const suffix = [
-    definition.value.label,
-    ...path.value.map((step) => step.label),
-    tab.value === 'breakdown' ? '层级拆解' : '来源记录',
-  ].join('_');
-  const metricColumns = tab.value === 'breakdown' ? columns.value : factColumns.value;
-  const headers = metricColumns.map((c) => `${c.label}（${c.unit}）`);
-  if (tab.value === 'breakdown')
-    exportCsv(
-      suffix,
-      [view.value.level?.label || '对象', ...headers],
-      [
-        ...sortedRows.value.map((row) => [
-          row.name,
-          ...metricColumns.map((c) => formatKpiCell(row.values[c.key], c)),
-        ]),
-        ['本层合计', ...metricColumns.map((c) => formatKpiCell(view.value.totals[c.key], c))],
-      ],
-    );
-  else
-    exportCsv(
-      suffix,
-      ['月份', '项目', '渠道大类', '供应商 / 平台', '细分触点', '客户类型', ...headers],
-      view.value.currentRecords.map((row) => {
-        const values = kpiFactValues(row, props.context.key);
-        return [
-          row.period,
-          row.project,
-          row.channel,
-          row.channelObject,
-          row.channelDetail,
-          row.customer,
-          ...metricColumns.map((c) => formatKpiCell(values[c.key], c)),
-        ];
-      }),
-    );
-}
 </script>
 <template>
-  <el-drawer v-model="store.kpiDetailVisible" :title="definition.label + ' · 指标下钻'" size="88%">
+  <el-drawer
+    v-model="store.kpiDetailVisible"
+    :title="
+      definition.label +
+      (context.range?.mode === 'yesterday'
+        ? ' · 昨日明细'
+        : context.range
+          ? ' · ' + statisticsPeriodPrefix(context.filter.periodType) + '明细'
+          : ' · 指标下钻')
+    "
+    size="88%"
+  >
     <div class="detail-context kpi-drill-context">
       <el-tag>继承指标卡筛选</el-tag
-      ><span>{{ context.filter.period.join(' 至 ') }} · {{ context.filter.basis }}</span
+      ><span
+        >{{ view.rangeLabels?.current || context.filter.period.join(' 至 ') }} ·
+        {{ context.filter.basis }}</span
       ><span>{{ contextLabel }}</span>
     </div>
     <div class="detail-kpis">
@@ -161,6 +144,9 @@ function download() {
     <div class="kpi-drill-formula">
       <strong>指标口径</strong>
       <p>{{ definition.formula }}</p>
+      <p v-if="context.range">
+        昨日为结束日期前一天；累计为所选起止日期（含首尾两日）。日度数据为月度模拟事实的确定性分配，不代表已接入真实日流水。
+      </p>
       <p v-if="context.key === 'completion'">
         子项对上级完成率贡献 = 子项签约金额 / 上级目标金额 ×
         100%，贡献合计等于上级完成率。差额在合计行按本层目标与实际净额重新计算。
@@ -168,12 +154,16 @@ function download() {
     </div>
     <div class="kpi-drill-comparison">
       <span
-        >上年同期：{{ view.priorPeriod.join(' 至 ') }}
-        <b>{{ trendLabel(view.totals.yoy ?? NaN) }}</b></span
+        >上年同期：{{ view.rangeLabels?.prior || view.priorPeriod.join(' 至 ') }}
+        <ComparisonBadge
+          :value="view.totals.yoy"
+          :unit="context.key === 'completion' ? 'pct' : '%'" /></span
       ><span
-        >上期：{{ view.previousPeriod.join(' 至 ') }}
-        <b>{{ trendLabel(view.totals.mom ?? NaN) }}</b></span
-      >
+        >上期：{{ view.rangeLabels?.previous || view.previousPeriod.join(' 至 ') }}
+        <ComparisonBadge
+          :value="view.totals.mom"
+          :unit="context.key === 'completion' ? 'pct' : '%'"
+      /></span>
     </div>
     <nav class="kpi-drill-breadcrumb" aria-label="指标下钻路径">
       <button @click="navigate(0)">{{ definition.label }} · 全部项目</button
@@ -229,7 +219,11 @@ function download() {
         align="right"
         sortable="custom"
         ><template #default="{ row }"
-          ><span :class="{ 'kpi-drill-value': column.key === 'value' }">{{
+          ><ComparisonBadge
+            v-if="['yoy', 'mom'].includes(column.key)"
+            :value="row.values[column.key]"
+            :unit="column.unit === 'pct' ? 'pct' : '%'"
+          /><span v-else :class="{ 'kpi-drill-value': column.key === 'value' }">{{
             formatKpiCell(row.values[column.key], column)
           }}</span></template
         ></el-table-column
@@ -239,7 +233,11 @@ function download() {
       /></template>
     </el-table>
     <el-table v-else :data="sourceRows" max-height="460"
-      ><el-table-column prop="period" label="月份" width="100" fixed /><el-table-column
+      ><el-table-column
+        prop="rangeLabel"
+        label="统计日期 / 区间"
+        width="205"
+        fixed /><el-table-column
         prop="project"
         label="项目"
         min-width="190"
@@ -271,7 +269,7 @@ function download() {
     <div class="table-footer">
       <span
         >共 {{ fmt(rowCount) }} {{ tab === 'breakdown' ? '个对象' : '条记录' }} ·
-        合计按当前层全部数据计算，导出包含全部页</span
+        合计按当前层全部数据计算</span
       ><el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
@@ -285,10 +283,5 @@ function download() {
     <p class="muted" v-if="context.key === 'collection'">
       当前回款与签约按各自期间汇总，尚无合同与到账流水关联，不能据此认定合同应收、逾期或欠款。
     </p>
-    <template #footer
-      ><el-button @click="back">{{ path.length ? '返回上一级' : '返回看板' }}</el-button
-      ><el-button @click="store.kpiDetailVisible = false">关闭</el-button
-      ><el-button type="primary" @click="download">导出当前层 CSV</el-button></template
-    >
   </el-drawer>
 </template>

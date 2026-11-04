@@ -25,7 +25,13 @@ export function mapRecord(row: MarketingPerformanceMetric): MarketingPerformance
     amount: Number(row.amount),
     collection: Number(row.collection),
     leads: Number(row.leads),
+    validLeads: row.validLeads === undefined ? undefined : Number(row.validLeads),
     visits: Number(row.visits),
+    visitPeople: row.visitPeople === undefined ? undefined : Number(row.visitPeople),
+    subscriptionUnits:
+      row.subscriptionUnits === undefined ? undefined : Number(row.subscriptionUnits),
+    subscriptionTargetUnits:
+      row.subscriptionTargetUnits === undefined ? undefined : Number(row.subscriptionTargetUnits),
     subscriptions: Number(row.subscriptions),
     contracts: Number(row.contracts),
     fee: Number(row.fee),

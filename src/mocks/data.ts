@@ -5,7 +5,7 @@ import { allocateInteger } from './allocation';
 export const metadata = {
   source: '本地模拟数据',
   basis: '客户按项目、渠道、客户类型去重；跨项目可能重复',
-  updatedAt: '2026-10-01 09:30',
+  updatedAt: '2026-10-30 09:30',
   period: '2025-01 至 2026-12',
 };
 export const projects = [
@@ -123,7 +123,16 @@ for (const year of [2025, 2026])
           const amounts = allocateInteger(amount, moneyWeights),
             targets = allocateInteger(target, traffic),
             collections = allocateInteger(collection, moneyWeights),
-            fees = allocateInteger(feeCents, traffic);
+            fees = allocateInteger(feeCents, traffic),
+            visitPeopleParts = allocateInteger(Math.round(visits * (1.3 + ti * 0.12)), visitParts),
+            subscriptionUnitParts = allocateInteger(
+              subscriptions + Math.round(subscriptions * 0.04),
+              subscriptionParts,
+            ),
+            subscriptionTargets = allocateInteger(
+              Math.round((18 + pi * 2 + ci * 2 + ti * 2) * p.factor),
+              traffic,
+            );
           leaves.forEach((leaf, i) =>
             records.push({
               id: `${period}-${pi}-${ci}-${ti}-${leaf.channelDetailId}`,
@@ -141,7 +150,17 @@ for (const year of [2025, 2026])
               property: ti === 2 ? '低密住宅' : '高层住宅',
               area: ['90㎡以下', '90–140㎡', '140㎡以上'][ti],
               leads: leadParts[i],
+              validLeads: Math.min(
+                leadParts[i],
+                Math.max(
+                  visitParts[i],
+                  Math.round(leadParts[i] * (0.63 + ci * 0.025 + ti * 0.015)),
+                ),
+              ),
               visits: visitParts[i],
+              visitPeople: visitPeopleParts[i],
+              subscriptionUnits: subscriptionUnitParts[i],
+              subscriptionTargetUnits: subscriptionTargets[i],
               subscriptions: subscriptionParts[i],
               contracts: contractParts[i],
               amount: amounts[i],

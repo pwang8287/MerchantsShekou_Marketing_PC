@@ -1,3 +1,5 @@
+import { sliceDateFacts } from './dateFacts';
+import { calendarBounds, periodAnchor } from './statisticsPeriod';
 import type {
   AggregateRow,
   DashboardFilter,
@@ -41,7 +43,11 @@ export function summarize(rows: MarketingPerformanceMetric[]): Summary {
       a.collection += r.collection;
       a.target += r.target;
       a.leads += r.leads;
+      a.validLeads += r.validLeads ?? 0;
       a.visits += r.visits;
+      a.visitPeople += r.visitPeople ?? 0;
+      a.subscriptionUnits += r.subscriptionUnits ?? 0;
+      a.subscriptionTargetUnits += r.subscriptionTargetUnits ?? 0;
       a.subscriptions += r.subscriptions;
       a.contracts += r.contracts;
       a.fee += r.fee;
@@ -52,7 +58,11 @@ export function summarize(rows: MarketingPerformanceMetric[]): Summary {
       collection: 0,
       target: 0,
       leads: 0,
+      validLeads: 0,
       visits: 0,
+      visitPeople: 0,
+      subscriptionUnits: 0,
+      subscriptionTargetUnits: 0,
       subscriptions: 0,
       contracts: 0,
       fee: 0,
@@ -68,11 +78,11 @@ export function summarize(rows: MarketingPerformanceMetric[]): Summary {
 }
 export function groupRows(
   rows: MarketingPerformanceMetric[],
-  key: Dimension | 'property' | 'area',
+  key: Dimension | 'property' | 'area' | 'advisor',
 ): AggregateRow[] {
   const groups = new Map<string, MarketingPerformanceMetric[]>();
   rows.forEach((r) => {
-    const name = r[key];
+    const name = key === 'advisor' ? r.advisor || '未分配顾问' : r[key];
     const existing = groups.get(name);
     if (existing) existing.push(r);
     else groups.set(name, [r]);
@@ -83,12 +93,14 @@ export function filterRows(
   rows: MarketingPerformanceMetric[],
   f: DashboardFilter,
   period = f.period,
+  respectDateRange = true,
 ) {
-  return rows.filter(
+  const matched = rows.filter(
     (r) =>
       r.period >= period[0] &&
       r.period <= period[1] &&
       (!f.organization || r.organization === f.organization) &&
+      (!f.organizationNames?.length || f.organizationNames.includes(r.organization)) &&
       (!f.region || r.region === f.region) &&
       (!f.city || r.city === f.city) &&
       (!f.project || r.project === f.project) &&
@@ -96,6 +108,39 @@ export function filterRows(
       (!f.channelObject || r.channelObjectId === f.channelObject) &&
       (!f.channelDetail || r.channelDetailId === f.channelDetail) &&
       (!f.customer || r.customer === f.customer),
+  );
+  const range = f.metricDateRange;
+  if (
+    !respectDateRange ||
+    !range ||
+    range[0].slice(0, 7) !== f.period[0] ||
+    range[1].slice(0, 7) !== f.period[1]
+  )
+    return matched;
+  const dateAt = (month: string, day: number) => {
+    const [year, m] = month.split('-').map(Number);
+    return `${month}-${String(Math.min(day, new Date(Date.UTC(year, m, 0)).getUTCDate())).padStart(2, '0')}`;
+  };
+  const sameSpan = (months: [string, string]) =>
+    (Number(months[1].slice(0, 4)) - Number(months[0].slice(0, 4))) * 12 +
+    Number(months[1].slice(5)) -
+    Number(months[0].slice(5));
+  const startDay = sameSpan(period) === sameSpan(f.period) ? Number(range[0].slice(8)) : 1;
+  const lastDate = (month: string) => dateAt(month, 31);
+  if (period[0] >= f.period[0] && period[1] <= f.period[1]) {
+    const start = `${period[0]}-01` > range[0] ? `${period[0]}-01` : range[0];
+    const end = lastDate(period[1]) < range[1] ? lastDate(period[1]) : range[1];
+    return sliceDateFacts(matched, start, end);
+  }
+  const calendar =
+    f.periodType && f.periodType !== 'custom'
+      ? calendarBounds(f.periodType, periodAnchor(f.periodType, range[0]))
+      : null;
+  const wholeCalendar = calendar && calendar.start === range[0] && calendar.end === range[1];
+  return sliceDateFacts(
+    matched,
+    dateAt(period[0], startDay),
+    wholeCalendar ? lastDate(period[1]) : dateAt(period[1], Number(range[1].slice(8))),
   );
 }
 export function shiftPeriod(period: [string, string], months: number): [string, string] {
@@ -119,5 +164,12 @@ export function metricValue(row: Summary, key: MetricKey) {
   return row[key];
 }
 export function displayMetric(row: Summary, key: MetricKey) {
-  return fmt(metricValue(row, key), ['completion', 'conversion', 'roi'].includes(key) ? 1 : 0);
+  return fmt(metricValue(row, key), metricDigits(key));
+}
+export function metricDigits(key: MetricKey) {
+  return metricDefs[key].unit.includes('元')
+    ? 2
+    : ['completion', 'conversion', 'roi'].includes(key)
+      ? 1
+      : 0;
 }

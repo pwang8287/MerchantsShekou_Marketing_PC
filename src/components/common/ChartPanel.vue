@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import type { EChartsOption } from 'echarts';
-import { Download, RefreshRight } from '@element-plus/icons-vue';
 import { withContext } from '../../charts/options/tooltip';
 import BaseChart from '../../charts/components/BaseChart.vue';
 import { useDashboardStore } from '../../stores/dashboard';
+import type { DashboardFilter } from '../../types';
+import { filterRows } from '../../utils/metrics';
 const props = withDefaults(
   defineProps<{
     title: string;
@@ -12,14 +13,26 @@ const props = withDefaults(
     option: EChartsOption;
     height?: number;
     unit?: string;
+    filter?: DashboardFilter;
+    contextualTooltip?: boolean;
   }>(),
-  { subtitle: '', height: 210, unit: '' },
+  { subtitle: '', height: 210, unit: '', contextualTooltip: true },
 );
 const emit = defineEmits<{ select: [name: string] }>();
-const chart = ref<InstanceType<typeof BaseChart>>();
 const store = useDashboardStore();
 const contextualOption = computed(() =>
-  withContext(props.option, store.rows, store.filter, props.unit, props.subtitle),
+  props.contextualTooltip
+    ? withContext(
+        props.option,
+        store.rows,
+        props.filter || store.filter,
+        props.unit,
+        props.subtitle,
+      )
+    : props.option,
+);
+const hasData = computed(() =>
+  props.filter ? filterRows(store.rows, props.filter).length > 0 : store.filtered.length > 0,
 );
 </script>
 <template>
@@ -29,29 +42,14 @@ const contextualOption = computed(() =>
         <h3>{{ title }}</h3>
         <p v-if="subtitle">{{ subtitle }}</p>
       </div>
-      <div class="chart-tools">
-        <slot name="tools" /><el-button
-          text
-          :icon="RefreshRight"
-          aria-label="重置图表"
-          title="重置图表"
-          @click="chart?.reset()"
-        /><el-button
-          text
-          :icon="Download"
-          aria-label="下载图表"
-          title="下载图表"
-          @click="chart?.download()"
-        />
-      </div>
+      <div v-if="$slots.tools" class="chart-tools"><slot name="tools" /></div>
     </header>
     <slot name="above-chart" />
     <BaseChart
-      ref="chart"
       :option="contextualOption"
       :height="height"
       :unit="unit"
-      :empty="!store.filtered.length"
+      :empty="!hasData"
       :loading="store.loading"
       @select="emit('select', $event)"
     />

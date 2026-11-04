@@ -12,9 +12,10 @@ const props = withDefaults(
     nameLabel?: string;
     metrics?: MetricKey[];
     compact?: boolean;
+    projectNavigation?: boolean;
   }>(),
   {
-    title: '项目营销明细',
+    title: '项目数据明细',
     nameLabel: '项目名称',
     metrics: () => [
       'amount',
@@ -26,6 +27,7 @@ const props = withDefaults(
       'conversion',
     ],
     compact: false,
+    projectNavigation: false,
   },
 );
 const store = useDashboardStore();
@@ -94,7 +96,13 @@ const selectRow = (r: AggregateRow) => store.drill(r.name + ' · 营销明细', 
       row-class-name="clickable-row"
       ><el-table-column prop="name" :label="nameLabel" min-width="190" fixed show-overflow-tooltip
         ><template #default="{ row }"
-          ><span class="project-link">{{ row.name }}</span
+          ><router-link
+            v-if="projectNavigation"
+            class="project-link"
+            :to="{ name: 'project-marketing-detail', params: { project: row.name } }"
+            @click.stop
+            >{{ row.name }}</router-link
+          ><span v-else class="project-link">{{ row.name }}</span
           ><small v-if="!compact" class="row-subtitle"
             >{{ row.records[0]?.region }} · {{ row.records[0]?.city }}</small
           ></template

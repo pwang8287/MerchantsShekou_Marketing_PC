@@ -3,8 +3,9 @@ import type { MarketingPerformanceMetric } from '../types';
 // 虚构顾问：每项目4人。按项目月度业绩分配，所有加总与原始记录一致。
 export function splitAdvisorRecords(
   rows: MarketingPerformanceMetric[],
+  projectNames?: string[],
 ): MarketingPerformanceMetric[] {
-  const names = [...new Set(rows.map((r) => r.project))].sort();
+  const names = projectNames || [...new Set(rows.map((r) => r.project))].sort();
   return rows.flatMap((r) => {
     const pi = names.indexOf(r.project);
     const year = Number(r.period.slice(0, 4));
@@ -36,9 +37,25 @@ export function splitAdvisorRecords(
       advisorId: `advisor-${pi}-${i}`,
       advisor: `顾问${String(pi * 4 + i + 1).padStart(2, '0')}`,
       contracts: contracts[i],
+      subscriptionTargetUnits:
+        r.subscriptionTargetUnits === undefined
+          ? undefined
+          : allocate(r.subscriptionTargetUnits, traffic)[i],
       subscriptions: subs[i],
       visits: visits[i],
+      visitPeople:
+        r.visitPeople === undefined
+          ? undefined
+          : allocate(r.visitPeople, visits.some(Boolean) ? visits : traffic)[i],
+      subscriptionUnits:
+        r.subscriptionUnits === undefined
+          ? undefined
+          : allocate(r.subscriptionUnits, subs.some(Boolean) ? subs : sales)[i],
       leads: leads[i],
+      validLeads:
+        r.validLeads === undefined
+          ? undefined
+          : allocate(r.validLeads, leads.some(Boolean) ? leads : traffic)[i],
       amount: amount[i],
       collection: collection[i],
       target: target[i],

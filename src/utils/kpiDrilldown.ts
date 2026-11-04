@@ -6,8 +6,27 @@ import type {
   KpiDrillStep,
   KpiDrillView,
 } from '../types/kpiDrilldown';
-import { change, filterRows, fmt, previousPeriod, shiftPeriod, summarize } from './metrics';
+import { comparableDateRanges, selectKpiDateRows } from './kpiDaily';
+import { filterRows, fmt, previousPeriod, shiftPeriod, summarize } from './metrics';
+import { comparisonChange, comparisonState } from './comparison';
 export const kpiDefinitions: Record<KpiKey, { label: string; unit: string; formula: string }> = {
+  leads: {
+    label: '线索数量',
+    unit: '组',
+    formula:
+      '线索数量按当前时间范围和组织、渠道事实加总。日度数值由月度模拟数据确定性分配，各子项与本层合计一致。',
+  },
+  visitPeople: {
+    label: '到访人数',
+    unit: '人',
+    formula:
+      '使用独立模拟的到访人数字段，不将到访组数直接改标为人数；跨项目、渠道和月份可能重复，不代表全局去重客户数。',
+  },
+  subscriptionUnits: {
+    label: '认购套数',
+    unit: '套',
+    formula: '使用认购房源套数字段，不将认购客户组数直接改标为套数；按当前时间范围汇总。',
+  },
   amount: {
     label: '签约金额',
     unit: '万元',
@@ -38,7 +57,6 @@ const levels = [
   { field: 'channelDetailId', label: '细分触点' },
 ] as const;
 const ratio = (a: number, b: number, scale = 100) => (b ? (a / b) * scale : null);
-const finite = (value: number) => (Number.isFinite(value) ? value : null);
 export function kpiValue(s: Summary, key: KpiKey): number | null {
   return key === 'completion' ? (s.target ? (s.amount / s.target) * 100 : null) : s[key];
 }
@@ -58,14 +76,20 @@ export function kpiRowValues(
     value,
     priorValue: prior,
     previousValue: previous,
-    yoy: value !== null && prior !== null ? finite(change(value, prior)) : null,
-    mom: value !== null && previous !== null ? finite(change(value, previous)) : null,
+    yoy: comparisonChange(value, prior, key === 'completion'),
+    mom: comparisonChange(value, previous, key === 'completion'),
     contribution:
       key === 'completion'
         ? ratio(c.amount, parent.target)
         : ratio(value || 0, kpiValue(parent, key) || 0),
     amount: c.amount,
     contracts: c.contracts,
+    leads: c.leads,
+    validLeads: c.validLeads,
+    leadValidityRate: ratio(c.validLeads, c.leads),
+    visits: c.visits,
+    visitPeople: c.visitPeople,
+    subscriptionUnits: c.subscriptionUnits,
     collection: c.collection,
     target: c.target,
     avgPrice: ratio(c.amount, c.contracts, 1),
@@ -82,18 +106,38 @@ export function kpiColumns(key: KpiKey): KpiDrillColumn[] {
     key: 'value',
     label: definition.label,
     unit: definition.unit,
-    digits: key === 'completion' ? 1 : 0,
+    digits: definition.unit.includes('元') ? 2 : key === 'completion' ? 1 : 0,
   };
   const related: Record<KpiKey, KpiDrillColumn[]> = {
+    leads: [
+      { key: 'validLeads', label: '有效线索', unit: '组' },
+      { key: 'leadValidityRate', label: '线索有效率', unit: '%', digits: 1 },
+      { key: 'contribution', label: '线索贡献占比', unit: '%', digits: 1 },
+      { key: 'visitPeople', label: '到访人数', unit: '人' },
+      { key: 'subscriptionUnits', label: '认购套数', unit: '套' },
+      { key: 'contracts', label: '签约套数', unit: '套' },
+    ],
+    visitPeople: [
+      { key: 'contribution', label: '到访人数贡献', unit: '%', digits: 1 },
+      { key: 'visits', label: '到访组数', unit: '组' },
+      { key: 'leads', label: '线索数量', unit: '组' },
+      { key: 'contracts', label: '签约套数', unit: '套' },
+    ],
+    subscriptionUnits: [
+      { key: 'contribution', label: '认购套数贡献', unit: '%', digits: 1 },
+      { key: 'subscriptions', label: '认购客户组数', unit: '组' },
+      { key: 'visitPeople', label: '到访人数', unit: '人' },
+      { key: 'contracts', label: '签约套数', unit: '套' },
+    ],
     amount: [
       { key: 'contribution', label: '金额贡献占比', unit: '%', digits: 1 },
       { key: 'contracts', label: '签约套数', unit: '套' },
-      { key: 'avgPrice', label: '套均签约金额', unit: '万元/套', digits: 1 },
+      { key: 'avgPrice', label: '套均签约金额', unit: '万元/套', digits: 2 },
     ],
     contracts: [
       { key: 'contribution', label: '套数贡献占比', unit: '%', digits: 1 },
       { key: 'amount', label: '签约金额', unit: '万元' },
-      { key: 'avgPrice', label: '套均签约金额', unit: '万元/套', digits: 1 },
+      { key: 'avgPrice', label: '套均签约金额', unit: '万元/套', digits: 2 },
       { key: 'subscriptions', label: '认购量', unit: '组' },
     ],
     collection: [
@@ -119,27 +163,40 @@ export function kpiColumns(key: KpiKey): KpiDrillColumn[] {
       unit: definition.unit,
       digits: selected.digits,
     },
-    { key: 'yoy', label: '同比变化', unit: '%', digits: 1 },
+    { key: 'yoy', label: '同比变化', unit: key === 'completion' ? 'pct' : '%', digits: 2 },
     {
       key: 'previousValue',
       label: '上期' + definition.label,
       unit: definition.unit,
       digits: selected.digits,
     },
-    { key: 'mom', label: '环比变化', unit: '%', digits: 1 },
+    { key: 'mom', label: '环比变化', unit: key === 'completion' ? 'pct' : '%', digits: 2 },
   ];
 }
 export function formatKpiCell(value: number | null | undefined, column: KpiDrillColumn) {
-  return value == null ? '—' : fmt(value, column.digits || 0);
+  if (['yoy', 'mom'].includes(column.key))
+    return comparisonState(value, column.unit === 'pct' ? 'pct' : '%').text;
+  return value == null ? '—' : fmt(value, column.unit.includes('元') ? 2 : column.digits || 0);
 }
 export function buildKpiDrilldown(context: KpiDrillContext, path: KpiDrillStep[]): KpiDrillView {
   const { rows, filter, key } = context;
   const scope = (r: MarketingPerformanceMetric) => path.every((step) => r[step.field] === step.id);
   const priorPeriod = shiftPeriod(filter.period, -12),
     priorRange = previousPeriod(filter.period);
-  const currentRecords = filterRows(rows, filter).filter(scope),
-    priorRecords = filterRows(rows, filter, priorPeriod).filter(scope),
-    previousRecords = filterRows(rows, filter, priorRange).filter(scope);
+  const dateRanges = context.range ? comparableDateRanges(context.range, filter) : undefined;
+  const currentRecords = (
+      context.range ? selectKpiDateRows(rows, filter, context.range) : filterRows(rows, filter)
+    ).filter(scope),
+    priorRecords = (
+      dateRanges
+        ? selectKpiDateRows(rows, filter, dateRanges.prior)
+        : filterRows(rows, filter, priorPeriod)
+    ).filter(scope),
+    previousRecords = (
+      dateRanges
+        ? selectKpiDateRows(rows, filter, dateRanges.previous)
+        : filterRows(rows, filter, priorRange)
+    ).filter(scope);
   const current = summarize(currentRecords),
     prior = summarize(priorRecords),
     previous = summarize(previousRecords),
@@ -189,6 +246,14 @@ export function buildKpiDrilldown(context: KpiDrillContext, path: KpiDrillStep[]
     );
   }
   return {
+    rangeLabels:
+      context.range && dateRanges
+        ? {
+            current: `${context.range.start} 至 ${context.range.end}`,
+            prior: `${dateRanges.prior.start} 至 ${dateRanges.prior.end}`,
+            previous: `${dateRanges.previous.start} 至 ${dateRanges.previous.end}`,
+          }
+        : undefined,
     current,
     prior,
     previous,
@@ -224,17 +289,33 @@ export function kpiSummaryCards(view: KpiDrillView, key: KpiKey) {
           ),
     unit: key === 'amount' || key === 'collection' ? '亿元' : kpiDefinitions[key].unit,
   };
-  const money = (value: number) => fmt(value);
+  const money = (value: number, digits = 0) => fmt(value, digits);
+  const amount = (value: number | null) => (value === null ? '—' : fmt(value, 2));
   const rate = (value: number | null) => (value === null ? '—' : fmt(value, 1));
   const related = {
+    leads: [
+      { label: '到访人数', value: money(s.visitPeople), unit: '人' },
+      { label: '认购套数', value: money(s.subscriptionUnits), unit: '套' },
+      { label: '签约套数', value: money(s.contracts), unit: '套' },
+    ],
+    visitPeople: [
+      { label: '到访组数', value: money(s.visits), unit: '组' },
+      { label: '线索数量', value: money(s.leads), unit: '组' },
+      { label: '签约套数', value: money(s.contracts), unit: '套' },
+    ],
+    subscriptionUnits: [
+      { label: '认购客户组数', value: money(s.subscriptions), unit: '组' },
+      { label: '到访人数', value: money(s.visitPeople), unit: '人' },
+      { label: '签约套数', value: money(s.contracts), unit: '套' },
+    ],
     amount: [
       { label: '签约套数', value: money(s.contracts), unit: '套' },
-      { label: '套均签约金额', value: rate(ratio(s.amount, s.contracts, 1)), unit: '万元/套' },
+      { label: '套均签约金额', value: amount(ratio(s.amount, s.contracts, 1)), unit: '万元/套' },
       { label: '销售目标完成率', value: rate(kpiValue(s, 'completion')), unit: '%' },
     ],
     contracts: [
-      { label: '签约金额', value: money(s.amount), unit: '万元' },
-      { label: '套均签约金额', value: rate(ratio(s.amount, s.contracts, 1)), unit: '万元/套' },
+      { label: '签约金额', value: money(s.amount, 2), unit: '万元' },
+      { label: '套均签约金额', value: amount(ratio(s.amount, s.contracts, 1)), unit: '万元/套' },
       {
         label: '上年同期签约套数',
         value: view.priorRecords.length ? money(view.prior.contracts) : '—',
@@ -242,18 +323,18 @@ export function kpiSummaryCards(view: KpiDrillView, key: KpiKey) {
       },
     ],
     collection: [
-      { label: '同期签约金额', value: money(s.amount), unit: '万元' },
+      { label: '同期签约金额', value: money(s.amount, 2), unit: '万元' },
       { label: '期间签约回款比', value: rate(ratio(s.collection, s.amount)), unit: '%' },
       {
         label: '上年同期回款',
-        value: view.priorRecords.length ? money(view.prior.collection) : '—',
+        value: view.priorRecords.length ? money(view.prior.collection, 2) : '—',
         unit: '万元',
       },
     ],
     completion: [
-      { label: '销售目标金额', value: money(s.target), unit: '万元' },
-      { label: '实际签约金额', value: money(s.amount), unit: '万元' },
-      { label: '未达目标差额', value: money(Math.max(s.target - s.amount, 0)), unit: '万元' },
+      { label: '销售目标金额', value: money(s.target, 2), unit: '万元' },
+      { label: '实际签约金额', value: money(s.amount, 2), unit: '万元' },
+      { label: '未达目标差额', value: money(Math.max(s.target - s.amount, 0), 2), unit: '万元' },
     ],
   };
   return [main, ...related[key]];
@@ -262,6 +343,12 @@ export function kpiFactColumns(key: KpiKey): KpiDrillColumn[] {
   return kpiColumns(key).filter((c) =>
     [
       'value',
+      'leads',
+      'validLeads',
+      'leadValidityRate',
+      'visits',
+      'visitPeople',
+      'subscriptionUnits',
       'amount',
       'contracts',
       'avgPrice',

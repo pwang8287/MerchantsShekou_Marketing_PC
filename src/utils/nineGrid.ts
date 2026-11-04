@@ -9,6 +9,7 @@ import type {
 } from '../types/nineGrid';
 import { simulatedDealCycle } from './dealCycle';
 import { change, divide, filterRows, previousPeriod, shiftPeriod, summarize } from './metrics';
+import { comparableDateRanges, kpiDateRange, selectKpiDateRows } from './kpiDaily';
 export function gridCells(kind: NineGridKind): GridCell[] {
   const advisor = kind === 'advisor';
   const names = advisor
@@ -94,9 +95,20 @@ export function buildNineGrid(
   thresholds: GridThresholds,
   channelLevel: ChannelLevel = 'category',
 ): GridResult {
-  const baseline = mode === 'yoy' ? shiftPeriod(filter.period, -12) : previousPeriod(filter.period);
+  const dates =
+    filter.periodType && filter.periodType !== 'custom' && filter.metricDateRange
+      ? comparableDateRanges(kpiDateRange(filter, 'cumulative'), filter)
+      : null;
+  const comparison = mode === 'yoy' ? dates?.prior : dates?.previous;
+  const baseline: [string, string] = comparison
+    ? [comparison.start.slice(0, 7), comparison.end.slice(0, 7)]
+    : mode === 'yoy'
+      ? shiftPeriod(filter.period, -12)
+      : previousPeriod(filter.period);
   const currentRows = filterRows(rows, filter),
-    previousRows = filterRows(rows, filter, baseline);
+    previousRows = comparison
+      ? selectKpiDateRows(rows, filter, comparison)
+      : filterRows(rows, filter, baseline);
   const key = (r: MarketingPerformanceMetric) =>
     kind === 'advisor'
       ? r.advisorId || ''

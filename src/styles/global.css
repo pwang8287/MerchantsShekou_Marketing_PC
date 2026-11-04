@@ -351,11 +351,6 @@ b {
   flex: none;
   font-size: 18px;
 }
-.kpi-card:nth-child(3) .kpi-icon,
-.kpi-card:nth-child(4) .kpi-icon {
-  background: #e9f7f2;
-  color: #159c77;
-}
 .kpi-period {
   margin-top: 10px;
   color: #71809a;
@@ -1894,7 +1889,7 @@ b {
   padding: 4px 0;
   font-size: 12px;
 }
-.dashboard-donut-tooltip .donut-tooltip-row > span {
+.dashboard-donut-tooltip .donut-tooltip-row > span:not(.comparison-badge) {
   color: #71809a;
   white-space: nowrap;
 }

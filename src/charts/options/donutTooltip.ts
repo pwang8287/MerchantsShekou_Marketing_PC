@@ -11,6 +11,29 @@ interface Size {
   height: number;
 }
 
+// 常规图表提示框跟随指针，在视口边缘换边；不受卡片 overflow 裁切。
+export function placeFloatingTooltip(
+  bounds: Bounds,
+  point: number[],
+  content: Size,
+  viewport: Size,
+): [number, number] {
+  const gap = 12;
+  const pointerX = bounds.left + point[0],
+    pointerY = bounds.top + point[1];
+  const clamp = (value: number, length: number, limit: number) =>
+    Math.max(gap, Math.min(value, limit - length - gap));
+  const x =
+    pointerX + gap + content.width <= viewport.width - gap
+      ? pointerX + gap
+      : pointerX - gap - content.width;
+  const y =
+    pointerY + gap + content.height <= viewport.height - gap
+      ? pointerY + gap
+      : pointerY - gap - content.height;
+  return [clamp(x, content.width, viewport.width), clamp(y, content.height, viewport.height)];
+}
+
 // 先避开整个环形图，再根据可用空间换边；返回视口坐标。
 export function placeDonutTooltip(bounds: Bounds, content: Size, viewport: Size): [number, number] {
   const gap = 12;
@@ -54,11 +77,15 @@ export function donutTooltip(): TooltipComponentOption {
 // host 由图表生命周期传入，避免依赖首次渲染时的 DOM 或滚动前的位置。
 export function configureChartTooltip(option: EChartsOption, host: HTMLElement): EChartsOption {
   const tooltip = option.tooltip;
-  if (!tooltip || Array.isArray(tooltip) || tooltip.className !== 'dashboard-donut-tooltip')
+  if (
+    !tooltip ||
+    Array.isArray(tooltip) ||
+    !['dashboard-donut-tooltip', 'dashboard-floating-tooltip'].includes(tooltip.className || '')
+  )
     return option;
   const positioned: TooltipComponentOption = {
     ...tooltip,
-    position(_point, _params, _dom, _rect, size) {
+    position(point, _params, _dom, _rect, size) {
       const bounds = host.getBoundingClientRect();
       const document = host.ownerDocument;
       const viewport = {
@@ -71,11 +98,11 @@ export function configureChartTooltip(option: EChartsOption, host: HTMLElement):
           document.defaultView?.innerHeight ||
           size.viewSize[1],
       };
-      const [x, y] = placeDonutTooltip(
-        bounds,
-        { width: size.contentSize[0], height: size.contentSize[1] },
-        viewport,
-      );
+      const content = { width: size.contentSize[0], height: size.contentSize[1] };
+      const [x, y] =
+        tooltip.className === 'dashboard-donut-tooltip'
+          ? placeDonutTooltip(bounds, content, viewport)
+          : placeFloatingTooltip(bounds, point, content, viewport);
       return [x - bounds.left, y - bounds.top];
     },
   };

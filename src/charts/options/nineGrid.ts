@@ -1,3 +1,4 @@
+import { comparisonHtml } from '../../utils/comparison';
 import type { EChartsOption } from 'echarts';
 import type { GridPoint, GridResult, GridThresholds, NineGridKind } from '../../types/nineGrid';
 import type { BubbleSizeMetric } from '../../utils/dealCycle';
@@ -71,11 +72,11 @@ export function nineGridOption(
       type: 'value',
       min: -yExtent,
       max: yExtent,
-      name: advisor ? 'Y · 到访转签约率变化（百分点）' : 'Y · 单套获客成本变化率（%）',
+      name: advisor ? 'Y · 到访转签约率变化（pct）' : 'Y · 单套获客成本变化率（%）',
       nameLocation: 'end',
       nameGap: 18,
       ...axisStyle,
-      axisLabel: { ...axisStyle.axisLabel, formatter: advisor ? '{value} pp' : '{value}%' },
+      axisLabel: { ...axisStyle.axisLabel, formatter: advisor ? '{value} pct' : '{value}%' },
     },
     tooltip: {
       trigger: 'item',
@@ -88,7 +89,7 @@ export function nineGridOption(
         const data = (input as { data: { point?: GridPoint } }).data;
         const p = data?.point;
         if (!p) return '点击分区筛选该区对象';
-        return `<b>${escape(p.name)}</b><br/>${escape(p.cell.name)} · ${escape(p.group)}<br/>签约套数：${fmt(p.current.contracts)} / 比较期 ${fmt(p.previous.contracts)}<br/>签约量变化：${fmt(p.x, 1)}%<br/>${advisor ? '到访转签约率变化' : '单套获客成本变化'}：${fmt(p.y, 1)} ${advisor ? '个百分点' : '%'}<br/>${advisor ? '到访转签约率：' + fmt((p.current.contracts / p.current.visits) * 100, 1) + '%' : '单套获客成本：' + fmt(p.current.acquisition) + ' 元/套'}<br/>签约金额：${fmt(p.current.amount)} 万元<br/>成交周期（模拟）：${p.dealCycle === null ? '—' : fmt(p.dealCycle, 1) + ' 天'}<br/><span style="color:#71809a">点击查看指标与客户来源明细</span>`;
+        return `<b>${escape(p.name)}</b><br/>${escape(p.cell.name)} · ${escape(p.group)}<br/>签约套数：${fmt(p.current.contracts)} / 比较期 ${fmt(p.previous.contracts)}<br/>签约量变化：${comparisonHtml(p.x)}<br/>${advisor ? '到访转签约率变化' : '单套获客成本变化'}：${comparisonHtml(p.y, advisor ? 'pct' : '%')}<br/>${advisor ? '到访转签约率：' + fmt((p.current.contracts / p.current.visits) * 100, 1) + '%' : '单套获客成本：' + fmt(p.current.acquisition, 2) + ' 元/套'}<br/>签约金额：${fmt(p.current.amount, 2)} 万元<br/>成交周期（模拟）：${p.dealCycle === null ? '—' : fmt(p.dealCycle, 1) + ' 天'}<br/><span style="color:#71809a">点击查看指标与客户来源明细</span>`;
       },
     },
     series: [
@@ -128,7 +129,7 @@ export function nineGridOption(
             fontSize: 10,
             formatter: (p: unknown) => {
               const v = Number((p as { value: number }).value);
-              return `${v > 0 ? '+' : ''}${v}${(p as { data: { xAxis?: number } }).data.xAxis !== undefined ? '%' : advisor ? 'pp' : '%'}`;
+              return `${v > 0 ? '+' : ''}${v}${(p as { data: { xAxis?: number } }).data.xAxis !== undefined ? '%' : advisor ? 'pct' : '%'}`;
             },
           },
           data: [

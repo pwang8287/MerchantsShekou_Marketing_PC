@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router';
 export default createRouter({
+  scrollBehavior: (_to, _from, savedPosition) => savedPosition || { top: 0 },
   history:
     import.meta.env.VITE_ROUTER_MODE === 'hash'
       ? createWebHashHistory(import.meta.env.BASE_URL)
@@ -12,6 +13,18 @@ export default createRouter({
       meta: { title: '营销分析' },
     },
     {
+      path: '/marketing-analysis/city/:organization',
+      name: 'city-marketing-detail',
+      component: () => import('../views/MarketingAnalysis/index.vue'),
+      meta: { title: '城市公司营销分析' },
+    },
+    {
+      path: '/marketing-analysis/project/:project',
+      name: 'project-marketing-detail',
+      component: () => import('../views/MarketingAnalysis/ProjectDetail.vue'),
+      meta: { title: '项目营销分析详情' },
+    },
+    {
       path: '/multi-analysis',
       component: () => import('../views/MultiAnalysis/index.vue'),
       meta: { title: '多维分析' },
@@ -19,7 +32,7 @@ export default createRouter({
     {
       path: '/multi-analysis-2',
       component: () => import('../views/MultiAnalysis2/index.vue'),
-      meta: { title: '多维分析2' },
+      meta: { title: '多维分析' },
     },
     {
       path: '/marketing-six-forces',

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const dir = await mkdtemp(join(tmpdir(), 'marketing-check-'));
 try {
-  for (const name of ['metrics', 'nineGrid', 'channels', 'donutTooltip', 'channelFunnel', 'sixForces', 'dealCycle', 'kpiDrilldown']) {
+  for (const name of ['metrics', 'nineGrid', 'channels', 'donutTooltip', 'channelFunnel', 'sixForces', 'dealCycle', 'kpiDaily', 'kpiDrilldown', 'kpiApi', 'projectMarketing', 'comparison', 'projectDataTable', 'customerStructure', 'advisorData', 'kpiTrend', 'statisticsPeriod', 'efficiencyPeriod', 'cityScope']) {
     const outfile = join(dir, name + '.cjs');
     await build({
       entryPoints: ['tests/' + name + '.test.ts'],
@@ -15,11 +15,13 @@ try {
       target: 'node16',
       format: 'cjs',
       define:
-        name === 'kpiDrilldown'
+        ['kpiDrilldown','kpiApi','statisticsPeriod','efficiencyPeriod','cityScope'].includes(name)
           ? { 'import.meta.env': JSON.stringify({ VITE_USE_MOCK: 'true' }) }
           : {},
     });
-    await import(pathToFileURL(outfile).href);
+    const loaded = await import(pathToFileURL(outfile).href);
+    const run = loaded.run || loaded.default?.run;
+    if (run) await run();
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

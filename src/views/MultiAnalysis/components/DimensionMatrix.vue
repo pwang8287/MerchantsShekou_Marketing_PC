@@ -87,7 +87,14 @@ const cellStyle = (row: string, column: string) => {
               >
                 {{
                   getCell(row.name, column).records.length
-                    ? fmt(getCell(row.name, column).value, metricDefs[metric].unit === '%' ? 1 : 0)
+                    ? fmt(
+                        getCell(row.name, column).value,
+                        metricDefs[metric].unit.includes('元')
+                          ? 2
+                          : metricDefs[metric].unit === '%'
+                            ? 1
+                            : 0,
+                      )
                     : '—'
                 }}
               </button>

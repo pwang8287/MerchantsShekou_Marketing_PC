@@ -16,7 +16,14 @@ export function useSixForces() {
     buildSixForceProjects(
       filterRows(
         store.rows,
-        { ...store.filter, organization: '', region: '', city: '', project: '' },
+        {
+          ...store.filter,
+          organization: '',
+          organizationNames: [],
+          region: '',
+          city: '',
+          project: '',
+        },
         period.value,
       ),
     ),

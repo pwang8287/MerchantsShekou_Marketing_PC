@@ -1,5 +1,12 @@
+export type StatisticsPeriodType = 'month' | 'quarter' | 'year' | 'custom';
 export interface DashboardFilter {
+  periodType?: StatisticsPeriodType;
+  periodAnchor?: string;
   organization: string;
+  organizationNames?: string[];
+  organizationLabel?: string;
+  metricDate?: string;
+  metricDateRange?: [string, string];
   region: string;
   city: string;
   project: string;
@@ -31,12 +38,24 @@ export interface MarketingPerformanceMetric {
   amount: number;
   collection: number;
   leads: number;
+  validLeads?: number;
   visits: number;
+  visitPeople?: number;
+  subscriptionUnits?: number;
+  subscriptionTargetUnits?: number;
+  rangeLabel?: string;
   subscriptions: number;
   contracts: number;
   fee: number;
 }
-export type KpiKey = 'amount' | 'contracts' | 'collection' | 'completion';
+export type KpiKey =
+  | 'amount'
+  | 'contracts'
+  | 'collection'
+  | 'completion'
+  | 'leads'
+  | 'visitPeople'
+  | 'subscriptionUnits';
 export interface KpiMetric {
   key: KpiKey;
   label: string;
@@ -45,6 +64,31 @@ export interface KpiMetric {
   yoy: number;
   mom: number;
   progress: number;
+  annualTarget?: number;
+  signedAmount?: number;
+  annualActual?: number;
+  annualTargetUnit?: string;
+  annualGoalTitle?: string;
+  targetProgress?: {
+    title: string;
+    rate: number | null;
+    actual: number;
+    target: number;
+    unit: string;
+    note: string;
+  };
+  annualConversionRate?: number | null;
+  annualConversionNote?: string;
+  conversionProgress?: {
+    title: string;
+    rate: number | null;
+    note: string;
+  };
+  leadValidityRate?: number | null;
+  leadValidityNote?: string;
+  yesterday: string;
+  yesterdayDate: string;
+  cumulativeRange: string;
   note: string;
 }
 export interface TrendPoint {
@@ -71,6 +115,7 @@ export interface ConversionFunnelStage {
 }
 export interface MarketingEfficiencyMetric {
   fee: number;
+  feeRate: number | null;
   leadCost: number;
   visitCost: number;
   acquisitionCost: number;
@@ -126,7 +171,11 @@ export interface Summary {
   target: number;
   collection: number;
   leads: number;
+  validLeads: number;
   visits: number;
+  visitPeople: number;
+  subscriptionUnits: number;
+  subscriptionTargetUnits: number;
   subscriptions: number;
   contracts: number;
   fee: number;

@@ -5,14 +5,22 @@ import type { EChartsOption } from 'echarts';
 import type { AggregateRow, MarketingPerformanceMetric, MetricKey } from '../../types';
 import { axis, palette } from '../themes/default';
 import { fmt, groupRows, metricDefs, summarize } from '../../utils/metrics';
+import type { EfficiencyTrendBucket } from '../../utils/efficiencyTrendData';
 function tooltip(unit: string) {
   return {
     trigger: 'axis' as const,
+    renderMode: 'html' as const,
+    appendTo: 'body',
+    confine: false,
+    className: 'dashboard-floating-tooltip',
+    transitionDuration: 0,
     backgroundColor: '#fff',
     borderColor: '#E2E8F0',
     textStyle: { color: '#14243D', fontSize: 12 },
-    valueFormatter: (value: unknown) => `${fmt(Number(value), 1)} ${unit}`,
-    extraCssText: 'box-shadow:0 5px 24px #10233f14;border-radius:6px;',
+    valueFormatter: (value: unknown) =>
+      `${fmt(Number(value), unit.includes('元') ? 2 : 1)} ${unit}`,
+    extraCssText:
+      'max-width:calc(100vw - 24px);white-space:normal;overflow-wrap:anywhere;line-height:1.8;box-sizing:border-box;box-shadow:0 5px 24px #10233f14;border-radius:6px;pointer-events:none;z-index:2100;',
   };
 }
 const grid = { left: 45, right: 18, top: 36, bottom: 26, containLabel: false };
@@ -70,6 +78,7 @@ export function trendOption(
       {
         name: '去年同期签约',
         type: 'line',
+        itemStyle: { color: '#B8B8B8' },
         symbol: 'none',
         lineStyle: { type: 'dashed', width: 1.5 },
         data: data.map(
@@ -90,7 +99,12 @@ export function trendOption(
     ],
   };
 }
-export function barOption(groups: AggregateRow[], key: MetricKey = 'amount'): EChartsOption {
+export function barOption(
+  groups: AggregateRow[],
+  key: MetricKey = 'amount',
+  showXAxisLabels = true,
+  compactLabels = false,
+): EChartsOption {
   const data = [...groups]
     .sort((a, b) => b[key] - a[key])
     .slice(0, 8)
@@ -99,26 +113,31 @@ export function barOption(groups: AggregateRow[], key: MetricKey = 'amount'): EC
   return {
     color: palette,
     tooltip: tooltip(def.unit),
-    grid: { left: 125, right: 55, top: 8, bottom: 18 },
-    xAxis: { type: 'value', ...axis },
+    grid: { left: compactLabels ? 52 : 125, right: compactLabels ? 65 : 55, top: 8, bottom: 18 },
+    xAxis: { type: 'value', ...axis, axisLabel: { ...axis.axisLabel, show: showXAxisLabels } },
     yAxis: {
       type: 'category',
       data: data.map((r) => r.name),
       ...axis,
-      axisLabel: { color: '#71809A', fontSize: 11, width: 115, overflow: 'truncate' },
+      axisLabel: {
+        color: '#71809A',
+        fontSize: 11,
+        width: compactLabels ? 44 : 115,
+        overflow: 'truncate',
+      },
     },
     series: [
       {
         type: 'bar',
         name: def.label,
-        barWidth: 12,
+        barWidth: compactLabels ? 18 : 12,
         itemStyle: { borderRadius: [0, 3, 3, 0] },
         label: {
           show: true,
           position: 'right',
           fontSize: 10,
           color: '#71809A',
-          formatter: (p) => fmt(Number(p.value)),
+          formatter: (p) => fmt(Number(p.value), def.unit.includes('元') ? 2 : 0),
         },
         data: data.map((r) => ({ value: r[key], name: r.name })),
       },
@@ -130,10 +149,11 @@ export function funnelOption(rows: MarketingPerformanceMetric[]): EChartsOption 
   const values = [s.leads, s.visits, s.subscriptions, s.contracts];
   return {
     color: ['#2873ED', '#528FF0', '#7CAAF4', '#A5C6F8'],
-    tooltip: { trigger: 'item', formatter: '{b}：{c} 组 / 套' },
+    tooltip: { ...tooltip('组 / 套'), trigger: 'item', formatter: '{b}：{c} 组 / 套' },
     series: [
       {
         type: 'funnel',
+        cursor: 'default',
         left: '8%',
         top: 8,
         bottom: 8,
@@ -156,7 +176,7 @@ export function efficiencyOption(rows: MarketingPerformanceMetric[]): EChartsOpt
   const groups = groupRows(rows, 'channel');
   return {
     color: palette,
-    tooltip: tooltip('元'),
+    tooltip: tooltip('元/套'),
     legend: { top: 0, right: 0, textStyle: { fontSize: 11 } },
     grid: { ...grid, left: 50 },
     xAxis: { type: 'category', data: groups.map((r) => r.name), ...axis },
@@ -167,38 +187,85 @@ export function efficiencyOption(rows: MarketingPerformanceMetric[]): EChartsOpt
         type: 'bar',
         barWidth: 22,
         itemStyle: { borderRadius: [3, 3, 0, 0] },
-        data: groups.map((r) => Math.round(r.acquisition)),
+        data: groups.map((r) => r.acquisition),
       },
     ],
   };
 }
-export function efficiencyTrend(rows: MarketingPerformanceMetric[]): EChartsOption {
-  const groups = groupRows(rows, 'period');
+export function efficiencyTrend(
+  rows: MarketingPerformanceMetric[],
+  months?: string[],
+): EChartsOption {
+  const byMonth = new Map(groupRows(rows, 'period').map((row) => [row.name, row]));
+  const periods = months || [...byMonth.keys()].sort();
+  const groups = periods.map((month) => byMonth.get(month));
   return {
     color: palette,
     tooltip: tooltip('万元'),
-    grid,
-    legend: { top: 0, right: 0, textStyle: { fontSize: 11 } },
-    xAxis: { type: 'category', ...axis, data: groups.map((r) => r.name) },
+    grid: { left: 12, right: 24, top: 58, bottom: 12, containLabel: true },
+    legend: { top: 0, right: 14, textStyle: { fontSize: 11 } },
+    xAxis: { type: 'category', ...axis, data: periods },
     yAxis: [
-      { type: 'value', ...axis, name: '万元', nameTextStyle: { fontSize: 10 } },
+      {
+        type: 'value',
+        ...axis,
+        name: '万元',
+        nameGap: 18,
+        nameTextStyle: { fontSize: 10, color: '#71809A' },
+      },
       {
         type: 'value',
         ...axis,
         name: '倍',
+        position: 'right',
+        nameGap: 18,
+        axisLabel: { ...axis.axisLabel, margin: 10 },
         splitLine: { show: false },
-        nameTextStyle: { fontSize: 10 },
+        nameTextStyle: { fontSize: 10, color: '#71809A' },
       },
     ],
     series: [
-      { name: '营销费用', type: 'bar', barWidth: 16, data: groups.map((r) => Math.round(r.fee)) },
+      {
+        name: '营销费用',
+        type: 'bar',
+        barWidth: 16,
+        data: groups.map((r) => (r ? Math.round(r.fee) : null)),
+      },
       {
         name: '营销投入产出比',
         type: 'line',
         smooth: true,
         yAxisIndex: 1,
         tooltip: { valueFormatter: (v: unknown) => `${v} 倍` },
-        data: groups.map((r) => Math.round(r.roi)),
+        data: groups.map((r) => (r?.fee ? Math.round(r.roi) : null)),
+      },
+    ],
+  };
+}
+export function efficiencyPeriodTrendOption(points: EfficiencyTrendBucket[]): EChartsOption {
+  const base = efficiencyTrend(
+    [],
+    points.map((p) => p.label),
+  );
+  return {
+    ...base,
+    tooltip: {
+      ...tooltip('万元'),
+      formatter: (input: unknown) => {
+        const item = (Array.isArray(input) ? input[0] : input) as { dataIndex: number };
+        const point = points[item.dataIndex];
+        if (!point) return '';
+        return `<b>${point.label}</b><br/>${point.start} 至 ${point.end}<br/>营销费用：${point.fee === null ? '-' : fmt(point.fee, 2) + ' 万元'}<br/>营销投入产出比：${point.roi === null ? '-' : fmt(point.roi, 2) + ' 倍'}`;
+      },
+    },
+    series: [
+      { name: '营销费用', type: 'bar', barWidth: 16, data: points.map((p) => p.fee) },
+      {
+        name: '营销投入产出比',
+        type: 'line',
+        smooth: true,
+        yAxisIndex: 1,
+        data: points.map((p) => p.roi),
       },
     ],
   };
@@ -260,7 +327,7 @@ export function scatterOption(
       trigger: 'item',
       formatter: (p: unknown) => {
         const d = (p as { data: { name: string; value: number[] } }).data;
-        return `${d.name}<br/>获客成本：${fmt(d.value[0])} 元/套<br/>签约转化率：${fmt(d.value[1], 1)}%<br/>签约金额：${fmt(d.value[2])} 万元`;
+        return `${d.name}<br/>获客成本：${fmt(d.value[0], 2)} 元/套<br/>签约转化率：${fmt(d.value[1], 1)}%<br/>签约金额：${fmt(d.value[2], 2)} 万元`;
       },
     },
     grid: { left: 48, right: 26, top: 28, bottom: 32 },
@@ -274,7 +341,7 @@ export function scatterOption(
       data: [
         {
           name: r.name,
-          value: [Math.round(r.acquisition), Number(r.conversion.toFixed(2)), r.amount],
+          value: [r.acquisition, Number(r.conversion.toFixed(2)), r.amount],
           dealCycle: cycle(r),
         },
       ],
@@ -310,7 +377,7 @@ export function comparisonTrend(
         smooth: true,
         symbol: 'none',
         lineStyle: { type: 'dashed' as const, width: 1 },
-        itemStyle: { color: '#a8b5c7' },
+        itemStyle: { color: '#B8B8B8' },
         data: periods.map((p) => {
           const period = `${Number(p.slice(0, 4)) - 1}${p.slice(4)}`;
           const matches = previous.filter((x) => x[dimension] === r.name && x.period === period);

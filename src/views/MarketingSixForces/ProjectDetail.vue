@@ -220,9 +220,9 @@ function jump(id: string) {
               ></el-table-column
             ><el-table-column label="实际 / 目标" min-width="125" align="right"
               ><template #default="{ row }"
-                ><b>{{ fmt(row.actual, 1) }}{{ row.unit }}</b
+                ><b>{{ fmt(row.actual, row.unit.includes('元') ? 2 : 1) }}{{ row.unit }}</b
                 ><small class="six-metric-direction"
-                  >目标 {{ row.target }}{{ row.unit }}</small
+                  >目标 {{ row.unit.includes('元') ? fmt(row.target, 2) : row.target }}{{ row.unit }}</small
                 ></template
               ></el-table-column
             ><el-table-column label="得分" min-width="75" align="right"

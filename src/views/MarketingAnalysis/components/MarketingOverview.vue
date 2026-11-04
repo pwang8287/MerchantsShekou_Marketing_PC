@@ -65,7 +65,7 @@ function drillMonth(name: string) {
           <button @click="store.drill('套均签约金额 · 项目明细')">
             <span>套均签约金额</span
             ><strong
-              >{{ fmt(divide(store.summary.amount, store.summary.contracts), 1) }}
+              >{{ fmt(divide(store.summary.amount, store.summary.contracts), 2) }}
               <small>万元/套</small></strong
             >
           </button>

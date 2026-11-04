@@ -1,6 +1,8 @@
+import type { KpiDateRange } from '../utils/kpiDaily';
 import type { DashboardFilter, KpiKey, MarketingPerformanceMetric, Summary } from './index';
 export interface KpiDrillContext {
   key: KpiKey;
+  range?: KpiDateRange;
   filter: DashboardFilter;
   rows: MarketingPerformanceMetric[];
 }
@@ -26,6 +28,7 @@ export interface KpiDrillRow {
   values: Record<string, number | null>;
 }
 export interface KpiDrillView {
+  rangeLabels?: { current: string; prior: string; previous: string };
   current: Summary;
   prior: Summary;
   previous: Summary;

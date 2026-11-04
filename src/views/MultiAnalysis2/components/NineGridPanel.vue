@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Download, RefreshRight } from '@element-plus/icons-vue';
+import { Download } from '@element-plus/icons-vue';
+import ComparisonBadge from '../../../components/common/ComparisonBadge.vue';
 import BaseChart from '../../../charts/components/BaseChart.vue';
 import BubbleSizeSelector from '../../../components/common/BubbleSizeSelector.vue';
 import { nineGridOption } from '../../../charts/options/nineGrid';
@@ -21,7 +22,6 @@ const props = defineProps<{
   thresholds: GridThresholds;
 }>();
 const store = useDashboardStore();
-const chart = ref<InstanceType<typeof BaseChart>>();
 const selectedCell = ref('');
 const selectedName = ref('');
 const showLabels = ref(false);
@@ -101,14 +101,6 @@ function select(name: string) {
     selectedCell.value = '';
   }
 }
-function reset() {
-  activeChannel.value = '';
-  selectedCell.value = '';
-  selectedName.value = '';
-  showLabels.value = false;
-  sizeMetric.value = 'current';
-  chart.value?.reset();
-}
 function drill(p: GridPoint) {
   store.drill(p.name + ' · ' + p.cell.name, p.records);
 }
@@ -156,19 +148,7 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
           >{{ showTable ? '收起' : '查看' }}明细</el-button
         ><el-button size="small" :icon="Download" :disabled="!listed.length" @click="download"
           >导出</el-button
-        ><el-button
-          text
-          :icon="RefreshRight"
-          title="重置图表"
-          aria-label="重置九宫格"
-          @click="reset"
-        /><el-button
-          text
-          :icon="Download"
-          title="下载图表 PNG"
-          aria-label="下载九宫格图片"
-          @click="chart?.download(kind === 'channel')"
-        />
+        >
       </div>
     </header>
     <div class="nine-grid-meta">
@@ -226,7 +206,6 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
     </div>
     <div class="nine-grid-body">
       <BaseChart
-        ref="chart"
         :option="option"
         :height="440"
         :loading="store.loading"
@@ -273,7 +252,7 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
               </div>
               <div>
                 <dt>签约金额</dt>
-                <dd>{{ fmt(selected.current.amount) }} 万元</dd>
+                <dd>{{ fmt(selected.current.amount, 2) }} 万元</dd>
               </div>
               <div>
                 <dt>签约套数</dt>
@@ -281,11 +260,13 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
               </div>
               <div>
                 <dt>签约量变化</dt>
-                <dd>{{ fmt(selected.x, 1) }}%</dd>
+                <dd><ComparisonBadge :value="selected.x" /></dd>
               </div>
               <div>
                 <dt>{{ advisor ? '转化率变化' : '获客成本变化' }}</dt>
-                <dd>{{ fmt(selected.y, 1) }}{{ advisor ? ' pp' : '%' }}</dd>
+                <dd>
+                  <ComparisonBadge :value="selected.y" :unit="advisor ? 'pct' : '%'" />
+                </dd>
               </div>
             </dl>
             <p class="insight-advice">{{ selected.cell.advice }}</p>
@@ -333,7 +314,7 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
     <div class="nine-grid-footnote">
       {{
         advisor
-          ? '转化率 = 签约套数 / 到访组数，变化按百分点计算。'
+          ? '转化率 = 签约套数 / 到访组数，变化按百分点（pct）计算。'
           : '单套获客成本 = 营销费用 × 10000 / 签约套数（元/套）。'
       }}
       成交周期为首次留资至签约的模拟天数，按签约套数加权；周期越长气泡越大。分界线为演示参数；点击背景分区或右侧宫格筛选，点击气泡查看指标。
@@ -345,13 +326,11 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
           :label="advisor ? '顾问 / 所属项目' : '对象名称'"
           min-width="200"
           fixed
-          show-overflow-tooltip
-        /><el-table-column
+          show-overflow-tooltip /><el-table-column
           prop="group"
           label="分类"
           min-width="110"
-          show-overflow-tooltip
-        /><el-table-column label="所在分区" width="105"
+          show-overflow-tooltip /><el-table-column label="所在分区" width="105"
           ><template #default="{ row }"
             ><el-tag
               size="small"
@@ -371,31 +350,35 @@ const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id ==
           min-width="145"
           align="right"
           sortable
-          ><template #default="{ row }">{{ fmt(row.current.amount) }}</template></el-table-column
+          ><template #default="{ row }">{{ fmt(row.current.amount, 2) }}</template></el-table-column
         ><el-table-column
           prop="current.contracts"
           label="本期签约（套）"
           min-width="130"
           align="right"
-          sortable
-        /><el-table-column
+          sortable /><el-table-column
           prop="previous.contracts"
           label="比较期签约（套）"
           min-width="140"
+          align="right" /><el-table-column
+          prop="x"
+          label="签约量变化（%）"
+          min-width="145"
           align="right"
-        /><el-table-column prop="x" label="签约量变化（%）" min-width="145" align="right" sortable
-          ><template #default="{ row }">{{ fmt(row.x, 1) }}%</template></el-table-column
+          sortable
+          ><template #default="{ row }"
+            ><ComparisonBadge :value="row.x" /></template></el-table-column
         ><el-table-column
           prop="y"
-          :label="advisor ? '转化率变化（百分点）' : '获客成本变化（%）'"
+          :label="advisor ? '转化率变化（pct）' : '获客成本变化（%）'"
           min-width="175"
           align="right"
           sortable
           ><template #default="{ row }"
-            >{{ fmt(row.y, 1) }}{{ advisor ? ' pp' : '%' }}</template
-          ></el-table-column
-        ></el-table
-      >
+            ><ComparisonBadge
+              :value="row.y"
+              :unit="advisor ? 'pct' : '%'" /></template></el-table-column
+      ></el-table>
       <p class="muted">共 {{ listed.length }} 个对象 · 点击行查看明细 · 当前分区筛选同步用于导出</p>
     </div>
   </section>
