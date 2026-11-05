@@ -12,6 +12,7 @@ const props = withDefaults(
     height?: number;
     unit?: string;
     transition?: boolean;
+    hoverOnlyAxisPointer?: boolean;
     pinnedTooltip?: { seriesId: string; dataIndex: number };
   }>(),
   { loading: false, empty: false, error: '', height: 190, unit: '', transition: false },
@@ -22,6 +23,18 @@ let chart: echarts.ECharts | undefined;
 let observer: ResizeObserver | undefined;
 let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
 let hadPinnedTooltip = false;
+function updateHoverPointer(trigger: 'mousemove' | 'leave', x?: number, y?: number) {
+  chart?.dispatchAction({
+    type: 'updateAxisPointer',
+    currTrigger: trigger,
+    x,
+    y,
+    // 十字线只负责定位，提示框继续由气泡悬停和固定提示逻辑管理。
+    dispatchAction: (action: { type: string }) => {
+      if (action.type !== 'hideTip' && action.type !== 'showTip') chart?.dispatchAction(action);
+    },
+  });
+}
 function showPinnedTooltip() {
   if (!chart || !props.pinnedTooltip) return;
   const series = Array.isArray(props.option.series) ? props.option.series : [props.option.series];
@@ -38,23 +51,43 @@ function render() {
   if (!chart) {
     chart = echarts.init(host.value);
     chart.on('click', (params) => emit('select', params.name));
+    chart.on('mousemove', (params) => {
+      if (!props.hoverOnlyAxisPointer) return;
+      const event = params.event;
+      if (params.seriesType === 'scatter' && params.data && event) {
+        updateHoverPointer('mousemove', event.offsetX, event.offsetY);
+      }
+    });
+    chart.on('mouseout', () => {
+      if (props.hoverOnlyAxisPointer) updateHoverPointer('leave');
+    });
+    chart.getZr().on('globalout', () => {
+      if (props.hoverOnlyAxisPointer) updateHoverPointer('leave');
+    });
   }
   if (tooltipTimer !== undefined) {
     clearTimeout(tooltipTimer);
     tooltipTimer = undefined;
   }
   // 清除上一次定位，等待本次位置动画完成后再显示，避免新数据配上旧坐标。
-  if (props.pinnedTooltip || hadPinnedTooltip) chart.dispatchAction({ type: 'hideTip' });
+  if (props.pinnedTooltip || hadPinnedTooltip) {
+    // 固定提示会忽略 hideTip；先解除固定和可进入状态，才能真正清除旧提示框。
+    chart.setOption({ tooltip: { alwaysShowContent: false, enterable: false, hideDelay: 0 } });
+    chart.dispatchAction({ type: 'hideTip' });
+  }
   const configured = configureChartTooltip(props.option, host.value!);
   const deferTooltip = props.transition && !!props.pinnedTooltip;
   const option =
     deferTooltip && configured.tooltip && !Array.isArray(configured.tooltip)
       ? { ...configured, tooltip: { ...configured.tooltip, show: false } }
       : configured;
-  chart.setOption(option, {
-    notMerge: !props.transition,
-    ...(props.transition ? { replaceMerge: ['series'] } : {}),
-  });
+  chart.setOption(
+    props.hoverOnlyAxisPointer ? { ...option, axisPointer: { triggerOn: 'none' } } : option,
+    {
+      notMerge: !props.transition,
+      ...(props.transition ? { replaceMerge: ['series'] } : {}),
+    },
+  );
   chart.resize();
   if (props.pinnedTooltip) {
     hadPinnedTooltip = true;

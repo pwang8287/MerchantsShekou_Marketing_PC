@@ -7,7 +7,7 @@ import { useDashboardStore } from '../../stores/dashboard';
 import { splitAdvisorRecords } from '../../mocks/advisors';
 import { filterRows, groupRows } from '../../utils/metrics';
 import { channelCatalog } from '../../mocks/channels';
-import { bubblePalette } from '../../charts/themes/bubbles';
+import { conversionMatrixPalette } from '../../charts/themes/bubbles';
 import {
   projectSalesStatus,
   projectSalesStatuses,
@@ -79,10 +79,10 @@ const cityColors = computed(() =>
   Object.fromEntries(
     [...new Set(store.rows.map((row) => row.city))]
       .sort()
-      .map((city, i) => [city, bubblePalette[i % bubblePalette.length]]),
+      .map((city, i) => [city, conversionMatrixPalette[i % conversionMatrixPalette.length]]),
   ),
 );
-const color = (city: string) => cityColors.value[city] || '#4f8eff';
+const color = (city: string) => cityColors.value[city] || conversionMatrixPalette[0];
 const tierRows = computed(() =>
   store.rows.filter(
     (row) =>

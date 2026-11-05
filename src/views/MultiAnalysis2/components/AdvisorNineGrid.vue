@@ -32,7 +32,7 @@ const store = useDashboardStore();
 const size = computed(() => props.size);
 const selectedName = ref('');
 const pointCity = (point: GridPoint) => point.records[0]?.city || '未分配城市';
-const color = (city: string) => props.cityColors[city] || '#4f8eff';
+const color = (city: string) => props.cityColors[city] || '#486DE6';
 const historyMonths = ref(6);
 const frameIndex = ref(5);
 const playing = ref(false);
@@ -174,19 +174,40 @@ const option = computed<EChartsOption>(() => {
       },
     );
   }
-  const tones = { good: '#F0FAF6', risk: '#FFF3F5', neutral: '#F1F5FF' };
+  const tones = { good: '#F1FAF6', risk: '#FFF5F7', neutral: '#FDFBF2' };
   return {
     animationDurationUpdate: 800,
     animationEasingUpdate: 'cubicInOut',
     tooltip: {
       trigger: 'item',
       show: !playing.value,
-      triggerOn: selectedName.value || playing.value ? 'none' : 'mousemove|click',
-      alwaysShowContent: !!selectedName.value && !playing.value,
-      enterable: !!selectedName.value && !playing.value,
+      triggerOn: playing.value ? 'none' : 'mousemove',
+      alwaysShowContent: false,
+      enterable: false,
       appendToBody: true,
+      confine: true,
+      transitionDuration: 0,
+      hideDelay: 0,
+      position: (point, _params, _dom, _rect, chartSize) => {
+        const [width, height] = chartSize.contentSize;
+        const [viewWidth, viewHeight] = chartSize.viewSize;
+        const left = point[0] + width + 16 < viewWidth ? point[0] + 12 : point[0] - width - 12;
+        // 留出底部坐标及回放控制区域，低位气泡的提示框向上避让。
+        return [
+          Math.max(8, Math.min(left, viewWidth - width - 8)),
+          Math.max(8, Math.min(point[1] + 12, viewHeight - height - 84)),
+        ];
+      },
+      axisPointer: {
+        type: 'cross',
+        crossStyle: { color: '#b7c1d0', type: 'dashed', width: 1 },
+        label: { show: false },
+      },
       backgroundColor: '#fff',
       borderColor: '#dfe7f1',
+      borderWidth: 1,
+      padding: 12,
+      extraCssText: 'border-radius:8px;box-shadow:0 8px 24px rgba(28,48,76,.12);',
       textStyle: { fontSize: 12, color: '#43546e' },
       formatter: (raw: unknown) => {
         const data = (raw as { data?: { point?: GridPoint; month?: string; days?: number } }).data;
@@ -197,12 +218,16 @@ const option = computed<EChartsOption>(() => {
           (char) =>
             ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
         );
-        return `<b>${name}</b><br/>${data?.month || currentFrame.value.month}<br/>${point.cell.name}<br/>接待人数：${fmt(point.current.visitPeople)} 人<br/>日均接待人数：${fmt(point.y, 2)} 人/日<br/>到访至签约转化率：${fmt(point.x, 2)}%<br/>签约套数：${fmt(point.current.contracts)} 套<br/>签约金额：${fmt(point.current.amount, 2)} 万元<br/>统计天数：${data?.days || result.value.days} 天`;
+        const row = (label: string, value: string, highlight = false) =>
+          `<div style="display:flex;justify-content:space-between;gap:20px;line-height:24px"><span style="color:#7b8aa3">${label}</span><span style="color:${highlight ? '#1677ff' : '#26394f'};font-weight:${highlight ? 600 : 400}">${value}</span></div>`;
+        const divider = '<div style="border-top:1px solid #edf1f7;margin:8px 0"></div>';
+        return `<div style="min-width:250px"><div style="display:flex;justify-content:flex-end;margin-bottom:8px"><span style="padding:1px 6px;border:1px solid #e4eaf3;border-radius:4px;color:#7b8aa3;font-size:11px">气泡大小：${size.value === 'cycle' ? '成交周期' : '签约金额'}</span></div><b style="color:#26394f">${name}</b>${row('统计月份', data?.month || currentFrame.value.month)}${divider}${row('接待人数', fmt(point.current.visitPeople) + ' 人')}${row('日均接待人数', fmt(point.y, 2) + ' 人/日')}${row('到访至签约转化率', fmt(point.x, 2) + '%', true)}${divider}${row('签约套数', fmt(point.current.contracts) + ' 套')}${row('签约金额', fmt(point.current.amount, 2) + ' 万元')}${size.value === 'cycle' ? row('平均成交周期', point.dealCycle == null ? '—' : fmt(point.dealCycle, 1) + ' 天') : ''}${divider}${row('所属区域', point.cell.name, true)}</div>`;
       },
     },
     grid: { left: 76, right: 28, top: 38, bottom: 76 },
     xAxis: {
       type: 'value',
+      z: 10,
       min: 0,
       max: 3,
       interval: 1,
@@ -211,12 +236,14 @@ const option = computed<EChartsOption>(() => {
         fontSize: 11,
         color: '#71809a',
       },
-      axisLine: { lineStyle: { color: '#cbd5e1' } },
+      axisLine: { show: true, lineStyle: { color: '#666666', type: 'solid', width: 1 } },
       axisTick: { show: false },
       splitLine: { show: false },
     },
     yAxis: {
       type: 'value',
+      z: 10,
+      position: 'left',
       min: 0,
       max: 3,
       interval: 1,
@@ -233,16 +260,17 @@ const option = computed<EChartsOption>(() => {
         fontSize: 11,
         color: '#71809a',
       },
+      axisLine: { show: true, lineStyle: { color: '#666666', type: 'solid', width: 1 } },
       axisTick: { show: false },
       splitLine: { show: false },
     },
     series: [
       {
         type: 'scatter',
-        id: 'current-bubbles',
-        z: 5,
-        symbolSize: (value: number[]) => Math.sqrt(value[2] / max) * 46 + 5,
-        emphasis: { scale: 1.2 },
+        id: 'matrix-background',
+        silent: true,
+        z: 0,
+        data: [],
         markArea: {
           z: 0,
           silent: true,
@@ -255,7 +283,7 @@ const option = computed<EChartsOption>(() => {
               itemStyle: { color: tones[cell.tone] },
               label: {
                 color:
-                  cell.tone === 'good' ? '#20a88a' : cell.tone === 'risk' ? '#e27978' : '#1677ff',
+                  cell.tone === 'good' ? '#00C48C' : cell.tone === 'risk' ? '#FF527B' : '#F5B900',
               },
             },
             { xAxis: cell.col + 1, yAxis: 3 - cell.row },
@@ -265,9 +293,22 @@ const option = computed<EChartsOption>(() => {
           silent: true,
           symbol: 'none',
           label: { show: false },
-          lineStyle: { color: '#9dafc9', type: 'solid', width: 1 },
+          lineStyle: { color: '#9dafc9', type: 'dashed', width: 1 },
           data: [{ xAxis: 1 }, { xAxis: 2 }, { yAxis: 1 }, { yAxis: 2 }],
         },
+      },
+      {
+        type: 'scatter',
+        id: 'current-bubbles',
+        z: 5,
+        symbolSize: (value: number[]) => Math.sqrt(value[2] / max) * 46 + 5,
+        emphasis: {
+          scale: 1.12,
+          focus: 'self',
+          blurScope: 'series',
+          itemStyle: { opacity: 1, borderWidth: 2 },
+        },
+        blur: { itemStyle: { opacity: 0.5 } },
         data: replayPoints.value.map((point) => ({
           id: point.name,
           name: point.name,
@@ -302,9 +343,9 @@ const option = computed<EChartsOption>(() => {
               props.search && !filtered.value.some((item) => item.name === point.name)
                 ? 0.08
                 : selectedName.value && selectedName.value !== point.name
-                  ? 0.2
+                  ? 0.5
                   : 0.9,
-            borderColor: selectedName.value === point.name ? '#1677ff' : '#fff',
+            borderColor: selectedName.value === point.name ? color(pointCity(point)) : '#fff',
             borderWidth: selectedName.value === point.name ? 3 : 1,
           },
         })),
@@ -312,20 +353,6 @@ const option = computed<EChartsOption>(() => {
       ...trajectory,
     ],
   };
-});
-const pinnedTooltip = computed(() => {
-  if (!selectedName.value || playing.value) return undefined;
-  const currentIndex = replayPoints.value.findIndex((point) => point.name === selectedName.value);
-  if (currentIndex >= 0) return { seriesId: 'current-bubbles', dataIndex: currentIndex };
-  const available = selectedHistory.value
-    .map((item, index) => ({ ...item, index }))
-    .filter((item) => item.point && item.index < frameIndex.value);
-  const nearest = [...available].sort(
-    (a, b) => Math.abs(a.index - frameIndex.value) - Math.abs(b.index - frameIndex.value),
-  )[0];
-  return nearest
-    ? { seriesId: 'history-points', dataIndex: available.indexOf(nearest) }
-    : undefined;
 });
 </script>
 <template>
@@ -342,8 +369,8 @@ const pinnedTooltip = computed(() => {
       <div class="matrix-plot">
         <BaseChart
           :option="option"
-          :pinned-tooltip="pinnedTooltip"
           transition
+          hover-only-axis-pointer
           :height="520"
           :loading="store.loading"
           :empty="!shown.length && !selectedHistory.some((item) => item.point)"
