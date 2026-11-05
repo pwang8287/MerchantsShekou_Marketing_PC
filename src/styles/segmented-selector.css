@@ -1,0 +1,57 @@
+/* 多维分析共用的连排单选按钮样式。 */
+.segmented-selector {
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0;
+  border-radius: 6px;
+  background: #fff;
+}
+.segmented-selector > button {
+  position: relative;
+  box-sizing: border-box;
+  height: 27px;
+  min-width: 44px;
+  margin: 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 0;
+  background: #fff;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #7b8aa3;
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.segmented-selector > button + button {
+  margin-left: -1px;
+}
+.segmented-selector > button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.segmented-selector > button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+.segmented-selector > button:only-child {
+  border-radius: 6px;
+}
+.segmented-selector > button:hover {
+  color: #1677ff;
+}
+.segmented-selector > button.active {
+  z-index: 1;
+  color: #ffffff;
+  border-color: #1677ff;
+  background: #1677ff;
+  font-weight: 500;
+}
+.segmented-selector > button:focus-visible {
+  z-index: 2;
+  outline: 2px solid #91caff;
+  outline-offset: 2px;
+}

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useDashboardStore } from '../../../stores/dashboard';
-import { fmt } from '../../../utils/metrics';
+import { fmt, summarize } from '../../../utils/metrics';
 import { calculateMarketingEfficiency } from '../../../utils/efficiency';
 const store = useDashboardStore();
 const metrics = computed(() => calculateMarketingEfficiency(store.filtered));
+const visitConversion = computed(() => {
+  const totals = summarize(store.filtered);
+  return totals.visitPeople ? fmt((totals.contracts / totals.visitPeople) * 100, 2) : '—';
+});
 const values = computed(() => [
   { name: '营销费用', value: fmt(metrics.value.fee, 2), unit: '万元' },
   {
@@ -15,6 +19,7 @@ const values = computed(() => [
   { name: '单条线索成本', value: fmt(metrics.value.leadCost, 2), unit: '元/组' },
   { name: '单组到访成本', value: fmt(metrics.value.visitCost, 2), unit: '元/组' },
   { name: '单套签约获客成本', value: fmt(metrics.value.acquisitionCost, 2), unit: '元/套' },
+  { name: '到访至签约转化率', value: visitConversion.value, unit: '%' },
   { name: '营销投入产出比', value: fmt(metrics.value.roi, 1), unit: '倍' },
 ]);
 </script>
@@ -50,7 +55,7 @@ const values = computed(() => [
   color: #71809a;
 }
 .efficiency-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 @media (max-width: 1250px) {
   .efficiency-grid {

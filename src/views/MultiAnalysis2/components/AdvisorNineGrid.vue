@@ -405,7 +405,7 @@ const pinnedTooltip = computed(() => {
         </div>
       </div>
       <div class="timeline-options">
-        <div class="timeline-periods">
+        <div class="timeline-periods segmented-selector">
           <button
             v-for="item in [
               { value: 3, label: '3个月' },
@@ -537,26 +537,6 @@ const pinnedTooltip = computed(() => {
   gap: 6px;
   flex-shrink: 0;
 }
-.timeline-periods {
-  display: flex;
-  gap: 4px;
-}
-.timeline-periods button {
-  border: 1px solid #dce5f2;
-  background: #fff;
-  border-radius: 4px;
-  padding: 5px 7px;
-  font: inherit;
-  font-size: 11px;
-  color: #7b8aa3;
-  cursor: pointer;
-}
-.timeline-periods button.active {
-  color: #1677ff;
-  background: #eaf4ff;
-  border-color: #8cbbff;
-}
-
 @media (max-width: 700px) {
   .matrix-timeline {
     flex-wrap: wrap;

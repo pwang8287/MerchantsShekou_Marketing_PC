@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import '../../styles/segmented-selector.css';
 import AdvisorNineGrid from './components/AdvisorNineGrid.vue';
 import ProjectMarketingTable from '../MarketingAnalysis/components/ProjectMarketingTable.vue';
 import { useDashboardStore } from '../../stores/dashboard';
@@ -126,7 +127,7 @@ watch(activeGroup, () => {
   <section class="panel matrix-shared-filters">
     <div class="city-filter-bar">
       <span class="city-filter-label">城市群组</span>
-      <div class="city-tier-selector" role="group" aria-label="城市群组">
+      <div class="city-tier-selector segmented-selector" role="group" aria-label="城市群组">
         <button
           v-for="tier in cityTiers"
           :key="tier"
@@ -151,7 +152,10 @@ watch(activeGroup, () => {
         <button
           v-for="city in groups"
           :key="city"
-          :class="{ muted: activeGroup && activeGroup !== city, active: activeGroup === city }"
+          :class="{
+            'city-muted': activeGroup && activeGroup !== city,
+            active: activeGroup === city,
+          }"
           :aria-pressed="activeGroup === city"
           @click="toggleGroup(city)"
         >
@@ -164,7 +168,7 @@ watch(activeGroup, () => {
       <div class="matrix-controls">
         <div class="project-stage-control">
           <span>项目阶段</span>
-          <div class="matrix-segmented" role="group" aria-label="项目阶段">
+          <div class="matrix-segmented segmented-selector" role="group" aria-label="项目阶段">
             <button
               v-for="status in ['全部', ...projectSalesStatuses]"
               :key="status"
@@ -176,9 +180,9 @@ watch(activeGroup, () => {
             </button>
           </div>
         </div>
-        <div class="project-stage-control">
+        <div class="project-stage-control filter-group-spaced">
           <span>渠道</span>
-          <div class="matrix-segmented" role="group" aria-label="选择渠道">
+          <div class="matrix-segmented segmented-selector" role="group" aria-label="选择渠道">
             <button
               :class="{ active: !selectedChannel }"
               :aria-pressed="!selectedChannel"
@@ -197,8 +201,8 @@ watch(activeGroup, () => {
             </button>
           </div>
         </div>
-        <span>气泡大小</span>
-        <div class="matrix-segmented">
+        <span class="filter-group-spaced">气泡大小</span>
+        <div class="matrix-segmented segmented-selector">
           <button :class="{ active: size === 'current' }" @click="size = 'current'">签约金额</button
           ><button :class="{ active: size === 'cycle' }" @click="size = 'cycle'">成交周期</button>
         </div>
@@ -379,38 +383,24 @@ watch(activeGroup, () => {
   gap: 7px;
 }
 .project-stage-control > span {
+  flex-shrink: 0;
+  width: 64px;
   white-space: nowrap;
+}
+.project-stage-control.filter-group-spaced > span {
+  width: auto;
+}
+.filter-group-spaced {
+  margin-left: 17px;
 }
 .matrix-controls > span {
   white-space: nowrap;
 }
-.matrix-segmented {
-  display: inline-flex;
-  border: 1px solid #dce5f2;
-  border-radius: 5px;
-  background: #fff;
-  padding: 3px;
-  gap: 2px;
-}
-.matrix-segmented button {
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #738194;
-  padding: 5px 9px;
-  font: inherit;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.matrix-segmented button.active {
-  background: #1677ff;
-  color: #fff;
-  font-weight: 600;
-}
 .city-filter-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  column-gap: 7px;
+  row-gap: 12px;
   padding: 0 0 16px;
   margin-bottom: 18px;
   border-bottom: 1px solid #edf1f7;
@@ -418,59 +408,46 @@ watch(activeGroup, () => {
   font-size: 12px;
 }
 .city-filter-label {
+  flex-shrink: 0;
+  width: 64px;
   color: #7b8aa3;
   white-space: nowrap;
-}
-.city-tier-selector {
-  display: inline-flex;
-  padding: 3px;
-  gap: 2px;
-  border: 1px solid #dce5f2;
-  border-radius: 6px;
-}
-.city-tier-selector button {
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #7b8aa3;
-  font: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.city-tier-selector button.active {
-  color: #fff;
-  background: #3478f6;
-  box-shadow: 0 2px 4px #3478f633;
 }
 .city-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
+  margin-left: 9px;
 }
 .city-legend button {
+  box-sizing: border-box;
+  height: 27px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   border: 0;
   background: transparent;
   color: #536985;
-  padding: 7px 0;
+  padding: 0;
   font: inherit;
+  line-height: 20px;
+  white-space: nowrap;
   cursor: pointer;
 }
 .city-legend button.all-cities {
-  padding: 7px 10px;
+  box-sizing: border-box;
+  height: 27px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 4px;
 }
 .city-legend button.all-cities.active {
-  border-color: #dbe8ff;
-  background: #f3f7ff;
-  color: #1677ff;
+  border-color: #1677ff;
+  background: #1677ff;
+  color: #ffffff;
 }
-.city-legend button.muted {
+.city-legend button.city-muted {
   opacity: 0.3;
 }
 .city-legend button.active {

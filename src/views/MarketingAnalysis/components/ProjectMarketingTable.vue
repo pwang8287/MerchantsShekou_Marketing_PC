@@ -62,6 +62,14 @@ const columns = computed(() => {
       { key: 'leads' as const, label: '推荐量', unit: '组', digits: 0, width: 120 },
       { key: 'visitPeople' as const, label: '推荐到访人数', unit: '人', digits: 0, width: 140 },
       { key: 'contracts' as const, label: '推荐成交套数', unit: '套', digits: 0, width: 140 },
+      {
+        key: 'visitConversion' as const,
+        label: '转化率',
+        unit: '%',
+        digits: 2,
+        width: 120,
+        note: '推荐成交套数 ÷ 推荐到访人数 × 100%；到访人数为零时显示 -。',
+      },
     ];
   if (!advisorMode.value) return [...projectDataColumns];
   const keys = [
@@ -254,8 +262,9 @@ function download() {
     >
       <el-table-column :label="nameLabel" prop="name" min-width="176" show-overflow-tooltip
         ><template #default="{ row }"
-          ><button
-            v-if="advisorMode"
+          ><span v-if="selfChannelMode">{{ row.name }}</span>
+          <button
+            v-else-if="advisorMode"
             class="project-link advisor-link"
             @click="store.drill(row.name + ' · 顾问明细', row.records)"
           >
