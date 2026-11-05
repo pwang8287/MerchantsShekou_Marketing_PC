@@ -237,7 +237,7 @@ const option = computed<EChartsOption>(() => {
         color: '#71809a',
       },
       axisLine: { show: true, lineStyle: { color: '#666666', type: 'solid', width: 1 } },
-      axisTick: { show: false },
+      axisTick: { show: true, length: 6, lineStyle: { color: '#666666', width: 1 } },
       splitLine: { show: false },
     },
     yAxis: {
@@ -261,7 +261,7 @@ const option = computed<EChartsOption>(() => {
         color: '#71809a',
       },
       axisLine: { show: true, lineStyle: { color: '#666666', type: 'solid', width: 1 } },
-      axisTick: { show: false },
+      axisTick: { show: true, length: 6, lineStyle: { color: '#666666', width: 1 } },
       splitLine: { show: false },
     },
     series: [
