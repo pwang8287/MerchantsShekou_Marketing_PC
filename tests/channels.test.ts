@@ -9,9 +9,9 @@ import { buildNineGrid, filterGridByChannel } from '../src/utils/nineGrid';
 import type { DashboardFilter } from '../src/types';
 assert.deepEqual(
   channelCatalog.map((c) => c.name),
-  ['自然到访', '中介分销', '自渠自拓', '线上获客', '老带新', '全面营销', '其他'],
+  ['自然到访', '中介分销', '自渠自拓', '线上获客', '老带新', '全民营销', '其他'],
 );
-assert.equal(channelCatalog.find((c) => c.name === '全面营销')?.alias, '全民营销');
+assert.equal(channelCatalog.find((c) => c.name === '全民营销')?.alias, '全民营销');
 assert.equal(new Set(channelLeaves.map((l) => l.channelDetailId)).size, channelLeaves.length);
 assert.equal(
   new Set(channelLeaves.map((l) => l.channelDetail)).size,

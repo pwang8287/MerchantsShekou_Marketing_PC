@@ -6,6 +6,7 @@ import type { DashboardFilter, KpiKey, MarketingPerformanceMetric } from '../typ
 import { kpiDateRange } from '../utils/kpiDaily';
 import { filterRows, summarize } from '../utils/metrics';
 import { scopeCityFilter, updateScopedFilter } from '../utils/cityScope';
+import type { ChannelRankingMetric } from '../utils/channelRanking';
 export const defaultFilter = (): DashboardFilter => {
   const now = new Date();
   const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -71,6 +72,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const kpiDetailContext = shallowRef<KpiDrillContext | null>(null);
   const detailTitle = ref('');
   const detailChannel = ref('');
+  const detailChannelMetric = ref<ChannelRankingMetric>('visitPeople');
   const detailRows = ref<MarketingPerformanceMetric[]>([]);
   function setCityScope(company: string) {
     if (cityScope.value === company) return;
@@ -126,10 +128,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
     };
     kpiDetailVisible.value = true;
   }
-  function drill(title: string, records = filtered.value, channel = '') {
+  function drill(
+    title: string,
+    records = filtered.value,
+    channel = '',
+    metric: ChannelRankingMetric = 'visitPeople',
+  ) {
     kpiDetailVisible.value = false;
     detailTitle.value = title;
     detailChannel.value = channel;
+    detailChannelMetric.value = metric;
     detailRows.value = records;
     drawer.value = true;
   }
@@ -155,6 +163,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     openKpiDetail,
     detailTitle,
     detailChannel,
+    detailChannelMetric,
     detailRows,
     load,
     query,

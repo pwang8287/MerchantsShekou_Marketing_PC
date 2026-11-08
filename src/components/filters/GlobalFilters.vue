@@ -16,6 +16,7 @@ const isMultiAnalysis = computed(() =>
   ['/multi-analysis', '/multi-analysis-2'].includes(route.path),
 );
 const isProjectPage = computed(() => route.name === 'project-marketing-detail');
+const isHomePage = computed(() => route.path === '/marketing-analysis');
 const projectSearch = ref('');
 const projectSearchInput = ref<InputInstance>();
 const projectOptions = computed(() => [...new Set(store.rows.map((row) => row.project))]);
@@ -102,9 +103,9 @@ const quarter = computed({
   },
 });
 watch(
-  isMultiAnalysis,
+  () => isHomePage.value || isMultiAnalysis.value,
   (visible) => {
-    if (visible && draft.periodType !== 'month') changeType('month');
+    if (visible && draft.periodType === 'quarter') changeType('month');
   },
   { immediate: true },
 );
@@ -160,22 +161,22 @@ function reset() {
           :value="project"
         />
       </el-select>
-      <el-form-item class="period-field" :label="isMultiAnalysis ? '' : '统计周期'">
+      <el-form-item class="period-field" label="统计周期">
         <div class="statistics-controls" :title="draft.metricDateRange?.join(' 至 ')">
           <el-radio-group
-            v-if="!isMultiAnalysis"
             :model-value="draft.periodType || 'custom'"
             class="statistics-type-switch"
             aria-label="统计周期类型"
             @update:model-value="changeType"
           >
             <el-radio-button value="month">月</el-radio-button
-            ><el-radio-button value="quarter">季</el-radio-button
+            ><el-radio-button v-if="!isHomePage && !isMultiAnalysis" value="quarter"
+              >季</el-radio-button
             ><el-radio-button value="year">年</el-radio-button
             ><el-radio-button value="custom">自定义</el-radio-button>
           </el-radio-group>
           <el-date-picker
-            v-if="isMultiAnalysis || draft.periodType === 'month'"
+            v-if="draft.periodType === 'month'"
             v-model="draft.periodAnchor"
             type="month"
             format="YYYY年MM月"
@@ -226,9 +227,9 @@ function reset() {
           />
         </div>
       </el-form-item>
-      <div v-if="!isMultiAnalysis" class="filter-actions">
+      <div class="filter-actions">
         <el-button
-          v-if="!route.path.startsWith('/marketing-analysis')"
+          v-if="!isMultiAnalysis && !route.path.startsWith('/marketing-analysis')"
           type="primary"
           :icon="Search"
           :loading="store.loading"

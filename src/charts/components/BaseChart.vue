@@ -13,16 +13,22 @@ const props = withDefaults(
     unit?: string;
     transition?: boolean;
     hoverOnlyAxisPointer?: boolean;
+    highlightName?: string;
     pinnedTooltip?: { seriesId: string; dataIndex: number };
   }>(),
   { loading: false, empty: false, error: '', height: 190, unit: '', transition: false },
 );
-const emit = defineEmits<{ select: [name: string]; retry: [] }>();
+const emit = defineEmits<{ select: [name: string]; hover: [name: string]; leave: []; retry: [] }>();
 const host = ref<HTMLDivElement>();
 let chart: echarts.ECharts | undefined;
 let observer: ResizeObserver | undefined;
 let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
 let hadPinnedTooltip = false;
+function syncHighlight() {
+  if (props.highlightName === undefined) return;
+  chart?.dispatchAction({ type: 'downplay' });
+  if (props.highlightName) chart?.dispatchAction({ type: 'highlight', name: props.highlightName });
+}
 function updateHoverPointer(trigger: 'mousemove' | 'leave', x?: number, y?: number) {
   chart?.dispatchAction({
     type: 'updateAxisPointer',
@@ -51,6 +57,7 @@ function render() {
   if (!chart) {
     chart = echarts.init(host.value);
     chart.on('click', (params) => emit('select', params.name));
+    chart.on('mouseover', (params) => emit('hover', params.name));
     chart.on('mousemove', (params) => {
       if (!props.hoverOnlyAxisPointer) return;
       const event = params.event;
@@ -59,9 +66,11 @@ function render() {
       }
     });
     chart.on('mouseout', () => {
+      emit('leave');
       if (props.hoverOnlyAxisPointer) updateHoverPointer('leave');
     });
     chart.getZr().on('globalout', () => {
+      emit('leave');
       if (props.hoverOnlyAxisPointer) updateHoverPointer('leave');
     });
   }
@@ -89,6 +98,7 @@ function render() {
     },
   );
   chart.resize();
+  syncHighlight();
   if (props.pinnedTooltip) {
     hadPinnedTooltip = true;
     const duration = props.option.animationDurationUpdate;
@@ -113,6 +123,7 @@ onMounted(() => {
   if (host.value) observer.observe(host.value);
 });
 watch([() => props.option, () => props.pinnedTooltip], () => nextTick(render), { deep: true });
+watch(() => props.highlightName, syncHighlight);
 onBeforeUnmount(() => {
   if (tooltipTimer !== undefined) clearTimeout(tooltipTimer);
   observer?.disconnect();

@@ -12,6 +12,7 @@ const rows = splitAdvisorRecords(records);
 for (const range of [
   ['2026-11-01', '2026-11-04'],
   ['2026-10-28', '2026-11-03'],
+  ['2026-01-01', '2026-11-06'],
   ['2025-01-01', '2025-01-31'],
 ] as [string, string][]) {
   const filter: DashboardFilter = {

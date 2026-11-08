@@ -1,305 +1,269 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { EChartsOption } from 'echarts';
 import BaseChart from '../../../charts/components/BaseChart.vue';
-import type { Summary } from '../../../types';
 import { useDashboardStore } from '../../../stores/dashboard';
-import { filterRows, fmt, groupRows, summarize } from '../../../utils/metrics';
+import { fmt, groupRows, summarize } from '../../../utils/metrics';
+import {
+  channelRankingDimensions,
+  type ChannelRankingDimension,
+} from '../../../utils/channelRanking';
+import organizationTree from '../../../mocks/organizationTree.json';
+import type { Summary } from '../../../types';
 import CustomerStructureAnalysis from './CustomerStructureAnalysis.vue';
 
 const store = useDashboardStore();
 const route = useRoute();
 const isProjectDetail = computed(() => route.name === 'project-marketing-detail');
-const isCityDetail = computed(() => route.name === 'city-marketing-detail');
-const projectLevel = computed(() => isCityDetail.value || isProjectDetail.value);
-const headquarters = computed(() =>
-  summarize(
-    filterRows(store.rows, {
-      ...store.filter,
-      organization: '',
-      organizationNames: [],
-      region: '',
-      city: '',
-      project: '',
-    }),
-  ),
+const dimensions = computed(() => channelRankingDimensions(store.filter, store.cityScope));
+const dimension = ref<ChannelRankingDimension>('group');
+const dimensionNames = { group: '城市群', organization: '城市', project: '项目' };
+watch(
+  dimensions,
+  (available) => {
+    if (!available.includes(dimension.value)) dimension.value = available[0];
+  },
+  { immediate: true },
 );
-const visitToContractRate = (row: Summary) =>
-  row.visitPeople ? (row.contracts / row.visitPeople) * 100 : null;
-const headquartersRate = computed(() => visitToContractRate(headquarters.value));
-function conversionClass(row: Summary) {
-  const rate = visitToContractRate(row);
-  if (rate === null || headquartersRate.value === null) return '';
-  const difference = rate - headquartersRate.value;
-  return difference > 1e-9 ? 'city-rate-above' : difference < -1e-9 ? 'city-rate-below' : '';
-}
-const columns = [
-  { key: 'leads', label: '线索数量', unit: '组' },
-  { key: 'visitPeople', label: '到访人数', unit: '人' },
-  { key: 'subscriptionUnits', label: '认购套数', unit: '套' },
-  { key: 'contracts', label: '签约套数', unit: '套' },
-  {
-    key: 'conversion',
-    label: '到访至签约转化率',
-    unit: '%',
-    tip: '签约套数 ÷ 到访人数 × 100%；为期间业务量比值，不代表同批客户的追踪转化率。',
-  },
-  {
-    key: 'acquisition',
-    label: '单套签约获客成本',
-    unit: '元/套',
-    tip: '营销费用（万元）× 10,000 ÷ 签约套数；越低表示单位签约投入越少。',
-  },
+const metrics = [
+  { key: 'leads', label: '线索数量', color: '#4285f4', unit: '组' },
+  { key: 'visitPeople', label: '到访人数', color: '#39b2c6', unit: '人' },
+  { key: 'subscriptionUnits', label: '认购套数', color: '#f5b94c', unit: '套' },
+  { key: 'contracts', label: '签约套数', color: '#9b79d4', unit: '套' },
+  { key: 'leadToVisit', label: '线索至到访转化率', color: '#84aef7', unit: '%' },
+  { key: 'visitToSubscription', label: '到访至认购转化率', color: '#57becb', unit: '%' },
+  { key: 'subscriptionToContract', label: '认购至签约转化率', color: '#f4c66b', unit: '%' },
 ] as const;
-type Key = (typeof columns)[number]['key'];
-const sort = ref<{ prop: Key; order: string | null }>({ prop: 'contracts', order: 'descending' });
-const rows = computed(() => {
-  const matched = groupRows(store.filtered, projectLevel.value ? 'project' : 'organization');
-  if (!sort.value.order) return matched;
-  const key = sort.value.prop;
-  const value = (r: Summary) =>
-    key === 'conversion'
-      ? visitToContractRate(r)
-      : key === 'acquisition' && !r.contracts
-        ? null
-        : r[key];
-  return matched.sort((a, b) => {
-    const av = value(a),
-      bv = value(b);
-    if (av === null) return bv === null ? 0 : 1;
-    if (bv === null) return -1;
-    return (av - bv) * (sort.value.order === 'ascending' ? 1 : -1);
-  });
+type MetricKey = (typeof metrics)[number]['key'];
+const sortKey = ref<MetricKey>('leads');
+function value(row: Summary, key: MetricKey): number | null {
+  if (key === 'leadToVisit') return row.leads ? (row.visitPeople / row.leads) * 100 : null;
+  if (key === 'visitToSubscription')
+    return row.visitPeople ? (row.subscriptionUnits / row.visitPeople) * 100 : null;
+  if (key === 'subscriptionToContract')
+    return row.subscriptionUnits ? (row.contracts / row.subscriptionUnits) * 100 : null;
+  return row[key];
+}
+const groups = computed(() => {
+  const facts =
+    dimension.value === 'group'
+      ? store.filtered.map((row) => ({
+          ...row,
+          region:
+            organizationTree.children.find((group) => group.children.includes(row.organization))
+              ?.name || row.region,
+        }))
+      : store.filtered;
+  return groupRows(facts, dimension.value === 'group' ? 'region' : dimension.value).sort(
+    (a, b) =>
+      (value(b, sortKey.value) ?? -Infinity) - (value(a, sortKey.value) ?? -Infinity) ||
+      a.name.localeCompare(b.name, 'zh-CN'),
+  );
 });
-const costChart = computed<EChartsOption>(() => ({
-  color: ['#4c88ff'],
+const plotRows = computed(() => {
+  if (!groups.value.length) return [];
+  const summary = summarize(store.filtered);
+  const count = groups.value.length;
+  const average = Object.fromEntries(
+    metrics.map((metric) => [
+      metric.key,
+      metric.unit === '%' ? value(summary, metric.key) : summary[metric.key as 'leads'] / count,
+    ]),
+  ) as Record<MetricKey, number | null>;
+  const rows = groups.value.map((row) => ({
+    name: row.name,
+    average: false,
+    values: Object.fromEntries(
+      metrics.map((metric) => [metric.key, value(row, metric.key)]),
+    ) as Record<MetricKey, number | null>,
+  }));
+  rows.splice(Math.ceil(rows.length / 2), 0, {
+    name: dimensionNames[dimension.value] + '均值',
+    average: true,
+    values: average,
+  });
+  return rows;
+});
+const option = computed<EChartsOption>(() => ({
+  color: metrics.map((metric) => metric.color),
   tooltip: {
     trigger: 'axis',
     confine: true,
     axisPointer: { type: 'shadow' },
-    valueFormatter: (value) =>
-      value == null ? '无签约，暂不计算' : `${fmt(Number(value), 2)} 元/套`,
   },
-  grid: { top: 48, left: 18, right: 24, bottom: 54, containLabel: true },
+  legend: { bottom: 0, type: 'scroll', textStyle: { color: '#667380', fontSize: 11 } },
+  grid: { top: 40, left: 20, right: 24, bottom: 88, containLabel: true },
   xAxis: {
     type: 'category',
-    name: projectLevel.value ? '项目' : '城市公司',
-    nameLocation: 'middle',
-    nameGap: 65,
-    data: rows.value.map((r) => r.name),
+    data: plotRows.value.map((row) => row.name),
+    axisLine: { lineStyle: { color: '#dce4f0' } },
     axisTick: { alignWithLabel: true },
     axisLabel: {
-      interval: 0,
-      rotate: 35,
       color: '#7e8da4',
       fontSize: 11,
-      formatter: (name: string) => (projectLevel.value ? name.replace(/^.*?·/, '') : name),
+      interval: 0,
+      rotate: dimension.value === 'project' ? 25 : 20,
+      formatter: (name: string) => (name.length > 12 ? name.slice(0, 11) + '…' : name),
     },
-    axisLine: { lineStyle: { color: '#dce4f0' } },
   },
-  yAxis: {
-    type: 'value',
-    name: '单套签约获客成本（元/套）',
-    nameTextStyle: { color: '#7e8da4', align: 'left' },
-    min: 0,
-    axisLabel: { color: '#7e8da4' },
-    splitLine: { lineStyle: { color: '#edf1f7', type: 'dashed' } },
-  },
-  series: [
+  yAxis: [
     {
-      name: '单套签约获客成本',
-      type: 'bar',
-      barMaxWidth: 34,
-      cursor: 'default',
-      itemStyle: { borderRadius: [5, 5, 0, 0] },
-      data: rows.value.map((r) => (r.contracts ? +r.acquisition.toFixed(2) : null)),
+      type: 'value',
+      name: '数量',
+      min: 0,
+      nameTextStyle: { color: '#7e8da4' },
+      axisLabel: { color: '#7e8da4' },
+      splitLine: { lineStyle: { color: '#edf1f7', type: 'dashed' } },
+    },
+    {
+      type: 'value',
+      name: '转化率（%）',
+      min: 0,
+      nameTextStyle: { color: '#7e8da4', align: 'right' },
+      axisLabel: { color: '#7e8da4' },
+      splitLine: { show: false },
     },
   ],
+  series: metrics.map((metric) => ({
+    name: metric.label,
+    type: metric.unit === '%' ? 'line' : 'bar',
+    yAxisIndex: metric.unit === '%' ? 1 : 0,
+    barMaxWidth: 24,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: { width: 2 },
+    cursor: 'default',
+    tooltip: {
+      valueFormatter: (v: unknown) =>
+        v == null ? '—' : fmt(Number(v), metric.unit === '%' ? 2 : 0) + ' ' + metric.unit,
+    },
+    data: plotRows.value.map((row) => ({
+      value: row.values[metric.key],
+      itemStyle: {
+        color: metric.color,
+        opacity: row.average ? 0.6 : 1,
+        borderRadius: metric.unit === '%' ? undefined : [3, 3, 0, 0],
+        borderWidth: row.average ? 1 : 0,
+        borderType: 'dashed',
+        borderColor: '#667380',
+      },
+    })),
+  })),
+  ...(plotRows.value.length > 15
+    ? {
+        dataZoom: [
+          { type: 'inside' as const, start: 0, end: (15 / plotRows.value.length) * 100 },
+          {
+            type: 'slider' as const,
+            bottom: 34,
+            height: 12,
+            start: 0,
+            end: (15 / plotRows.value.length) * 100,
+          },
+        ],
+      }
+    : {}),
 }));
-function display(row: Summary, key: Key) {
-  if ((key === 'conversion' && !row.visitPeople) || (key === 'acquisition' && !row.contracts))
-    return '—';
-  return (
-    fmt(
-      key === 'conversion' ? visitToContractRate(row)! : row[key],
-      key === 'conversion' ? 1 : key === 'acquisition' ? 2 : 0,
-    ) + (key === 'conversion' ? '%' : ` ${columns.find((column) => column.key === key)!.unit}`)
-  );
-}
-function totals() {
-  const total = summarize(rows.value.flatMap((r) => r.records));
-  return ['合计', ...columns.map((column) => display(total, column.key))];
-}
-function onSort(next: { prop: Key; order: string | null }) {
-  sort.value = next;
-}
 </script>
 
 <template>
   <CustomerStructureAnalysis v-if="isProjectDetail" />
-  <section v-else class="panel table-panel city-conversion-panel">
+  <section v-else class="panel conversion-comparison-panel">
     <header class="panel-head">
       <div>
-        <h3>
-          {{ isCityDetail ? '项目转化链路对比' : '城市公司转化链路对比' }}
-          <span class="count-badge">{{ rows.length }}</span>
-        </h3>
-        <p>获客 → 到访 → 认购 → 签约 · 按当前日期、组织与渠道筛选汇总</p>
+        <h3>营销转化对比分析</h3>
+        <p>按当前统计周期对比各组织的线索、到访、认购、签约数量及环节转化率</p>
       </div>
     </header>
-    <div class="city-comparison-layout">
-      <div class="city-cost-panel">
-        <BaseChart
-          :option="costChart"
-          :height="360"
-          :empty="!rows.length"
-          :loading="store.loading"
-          unit="元/套"
-        />
+    <div class="comparison-toolbar">
+      <div class="sort-controls">
+        <span>排序字段</span>
+        <div class="comparison-switch" role="group" aria-label="排序字段">
+          <button
+            v-for="metric in metrics"
+            :key="metric.key"
+            :class="{ active: sortKey === metric.key }"
+            :aria-pressed="sortKey === metric.key"
+            @click="sortKey = metric.key"
+          >
+            {{ metric.label }}
+          </button>
+        </div>
       </div>
-      <div class="city-detail-panel">
-        <el-table
-          size="small"
-          :data="rows"
-          v-loading="store.loading"
-          show-summary
-          :summary-method="totals"
-          :default-sort="{ prop: 'contracts', order: 'descending' }"
-          @sort-change="onSort"
-          :empty-text="projectLevel ? '当前筛选条件暂无项目数据' : '当前筛选条件暂无城市公司数据'"
+      <div
+        v-if="dimensions.length > 1"
+        class="comparison-switch"
+        role="group"
+        aria-label="组织层级"
+      >
+        <button
+          v-for="level in dimensions"
+          :key="level"
+          :class="{ active: dimension === level }"
+          :aria-pressed="dimension === level"
+          @click="dimension = level"
         >
-          <el-table-column
-            :label="projectLevel ? '项目名称' : '城市公司'"
-            prop="name"
-            :min-width="projectLevel ? 150 : 100"
-            fixed
-            show-overflow-tooltip
-            ><template #default="{ row }"
-              ><router-link
-                class="company-project-link"
-                :to="
-                  isCityDetail
-                    ? {
-                        name: 'project-marketing-detail',
-                        params: { project: row.name },
-                        query: { company: String(route.params.organization) },
-                      }
-                    : { name: 'city-marketing-detail', params: { organization: row.name } }
-                "
-                >{{ row.name }}</router-link
-              ></template
-            ></el-table-column
-          >
-          <el-table-column
-            v-for="column in columns"
-            :key="column.key"
-            :prop="column.key"
-            :label="column.label"
-            :min-width="column.key === 'acquisition' ? 155 : column.key === 'conversion' ? 155 : 85"
-            align="right"
-            sortable="custom"
-            ><template #header
-              ><el-tooltip
-                v-if="'tip' in column"
-                :content="column.tip"
-                placement="top"
-                :show-after="200"
-                ><span class="city-column-help">{{ column.label }} ⓘ</span></el-tooltip
-              ><span v-else>{{ column.label }}</span></template
-            ><template #default="{ row }"
-              ><span
-                :class="column.key === 'conversion' ? ['city-rate', conversionClass(row)] : ''"
-                >{{ display(row, column.key) }}</span
-              ></template
-            ></el-table-column
-          >
-        </el-table>
+          {{ dimensionNames[level] }}
+        </button>
       </div>
     </div>
+    <BaseChart :option="option" :height="400" :empty="!groups.length" :loading="store.loading" />
   </section>
 </template>
-
 <style scoped>
-.company-project-link {
-  color: #487df0;
-  text-decoration: none;
-  font-size: 12px;
-}
-.city-comparison-layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(0, 2fr);
-  gap: 20px;
-  align-items: stretch;
-}
-.city-detail-panel,
-.city-cost-panel {
+.conversion-comparison-panel {
+  padding: 16px;
+  margin-bottom: 16px;
   min-width: 0;
 }
-.city-cost-panel {
-  padding-right: 20px;
-  border-right: 1px solid #edf1f7;
+.panel-head p {
+  margin: 7px 0 0;
+  font-size: 12px;
+  color: #8996ab;
 }
-.city-detail-panel :deep(.el-table) {
+.comparison-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 12px;
+}
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.sort-controls > span {
+  flex-shrink: 0;
+  color: #8090a7;
   font-size: 12px;
 }
-.city-detail-panel :deep(.el-table th.el-table__cell) {
-  padding: 7px 0;
+.comparison-switch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 2px;
+  gap: 2px;
+  background: #f5f6f8;
+  border-radius: 5px;
+}
+.comparison-switch button {
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  color: #667380;
+  font: inherit;
   font-size: 12px;
-}
-.city-detail-panel :deep(.el-table td.el-table__cell) {
-  padding: 6px 0;
-}
-.city-detail-panel :deep(.el-table .cell) {
-  padding: 0 5px;
-  line-height: 20px;
+  cursor: pointer;
   white-space: nowrap;
 }
-.city-detail-panel :deep(.el-button.is-link) {
-  font-size: 12px;
-  padding: 2px 0;
-}
-.city-detail-panel :deep(.el-table__footer-wrapper td.el-table__cell) {
-  padding: 6px 0;
-}
-.city-detail-panel {
-  overflow: hidden;
-}
-.city-conversion-panel .panel-head {
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.city-conversion-panel .panel-head p {
-  margin: 7px 0 0;
-  color: #8996ab;
-  font-size: 12px;
-}
-@media (max-width: 1320px) {
-  .city-comparison-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .city-cost-panel {
-    padding-right: 0;
-    border-right: 0;
-    border-bottom: 1px solid #edf1f7;
-    padding-bottom: 16px;
-  }
-}
-.city-rate {
-  display: inline-block;
-  border-radius: 5px;
-  padding: 2px 6px;
+.comparison-switch button.active {
+  background: #fff;
+  color: #26394f;
+  box-shadow: 0 1px 4px #00000010;
   font-weight: 600;
-}
-.city-rate-above {
-  color: #527dcc;
-  background: #eff5ff;
-}
-.city-rate-below {
-  color: #8792a2;
-  background: #f5f6f8;
-}
-.city-column-help {
-  cursor: help;
 }
 </style>

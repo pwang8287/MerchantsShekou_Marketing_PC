@@ -81,8 +81,10 @@ const percent = (value: number, denominator: number) =>
         <el-table-column label="签约套数" align="right" min-width="70"
           ><template #default="{ row }">{{ fmt(row.contracts) }} 套</template></el-table-column
         >
-        <el-table-column label="签约金额(万元)" align="right" min-width="100"
-          ><template #default="{ row }">{{ fmt(row.amount, 2) }}</template></el-table-column
+        <el-table-column label="单套获客成本(元/套)" align="right" min-width="130"
+          ><template #default="{ row }">{{
+            row.contracts ? fmt((row.fee * 10000) / row.contracts, 2) : '—'
+          }}</template></el-table-column
         >
         <el-table-column label="到访至签约转化率" align="right" min-width="115"
           ><template #default="{ row }">{{

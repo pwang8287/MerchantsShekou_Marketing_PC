@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Download, Search } from '@element-plus/icons-vue';
+import type { DashboardFilter, MarketingPerformanceMetric } from '../../../types';
 import { useDashboardStore } from '../../../stores/dashboard';
 import { fmt, filterRows, summarize } from '../../../utils/metrics';
 import { exportCsv } from '../../../utils/export';
@@ -14,9 +15,17 @@ import {
   type ProjectDataRow,
 } from '../../../utils/projectDataTable';
 type TableKey = ProjectDataKey | 'revisitRate' | 'dealCycle';
-const props = withDefaults(defineProps<{ advisorList?: boolean; projects?: string[] }>(), {
-  advisorList: false,
-});
+const props = withDefaults(
+  defineProps<{
+    advisorList?: boolean;
+    projects?: string[];
+    filter?: DashboardFilter;
+    rows?: MarketingPerformanceMetric[];
+  }>(),
+  {
+    advisorList: false,
+  },
+);
 type TableRow = ProjectDataRow & { revisitRate: number | null; dealCycle: number | null };
 const dealCycleColumn = {
   key: 'dealCycle' as const,
@@ -47,14 +56,16 @@ function revisitRate(row: ProjectDataRow) {
   return row.visitPeople ? (returned / row.visitPeople) * 100 : null;
 }
 const store = useDashboardStore();
+const analysisFilter = computed(() => props.filter || store.filter);
+const sourceRows = computed(() => props.rows || store.rows);
 const advisorMode = computed(() => props.advisorList || !!store.projectScope);
 const showAdvisorTabs = computed(() => !!store.projectScope && !props.advisorList);
 const advisorTab = ref<'advisor' | 'self'>('advisor');
 const selfChannelMode = computed(() => showAdvisorTabs.value && advisorTab.value === 'self');
 const detailFilter = computed(() =>
   selfChannelMode.value
-    ? { ...store.filter, channel: '自渠自拓', channelObject: '', channelDetail: '' }
-    : store.filter,
+    ? { ...analysisFilter.value, channel: '自渠自拓', channelObject: '', channelDetail: '' }
+    : analysisFilter.value,
 );
 const columns = computed(() => {
   if (selfChannelMode.value)
@@ -101,8 +112,8 @@ const tableTitle = computed(() =>
 const nameLabel = computed(() => (advisorMode.value ? '顾问名称' : '项目名称'));
 const headquartersRate = computed(() => {
   const total = summarize(
-    filterRows(store.rows, {
-      ...store.filter,
+    filterRows(sourceRows.value, {
+      ...analysisFilter.value,
       organization: '',
       organizationNames: [],
       region: '',
@@ -132,10 +143,10 @@ watch(advisorTab, () => {
 });
 const data = computed<TableRow[]>(() =>
   (props.advisorList
-    ? buildAdvisorProjectRows(store.rows, store.filter)
+    ? buildAdvisorProjectRows(sourceRows.value, analysisFilter.value)
     : advisorMode.value
-      ? buildAdvisorDataRows(store.rows, detailFilter.value)
-      : buildProjectDataRows(store.rows, store.filter)
+      ? buildAdvisorDataRows(sourceRows.value, detailFilter.value)
+      : buildProjectDataRows(sourceRows.value, analysisFilter.value)
   )
     .filter(
       (row) => !props.projects || props.projects.includes(row.records[0]?.project || row.name),

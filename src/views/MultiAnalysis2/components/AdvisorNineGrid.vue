@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import type { EChartsOption, LineSeriesOption, ScatterSeriesOption } from 'echarts';
-import type { MarketingPerformanceMetric } from '../../../types';
+import type { DashboardFilter, MarketingPerformanceMetric } from '../../../types';
 import type { GridPoint } from '../../../types/nineGrid';
 import BaseChart from '../../../charts/components/BaseChart.vue';
 import { useDashboardStore } from '../../../stores/dashboard';
-import { buildReceptionHistory } from '../../../utils/advisorReceptionMatrix';
+import {
+  buildAdvisorReceptionMatrix,
+  buildReceptionHistory,
+} from '../../../utils/advisorReceptionMatrix';
+import { formatStatisticsPeriod } from '../../../utils/statisticsPeriod';
 import { fmt } from '../../../utils/metrics';
 import { matrixReplayPoints } from '../../../utils/matrixReplay';
 import type { BubbleSizeMetric } from '../../../utils/dealCycle';
 const props = withDefaults(
   defineProps<{
     rows: MarketingPerformanceMetric[];
+    filter?: DashboardFilter;
     dimension?: 'advisor' | 'project';
-    size?: BubbleSizeMetric;
+    size?: BubbleSizeMetric | 'contracts';
     selectedProject?: string;
     search?: string;
     cityColors?: Record<string, string>;
@@ -29,17 +34,47 @@ const props = withDefaults(
 const projectMode = computed(() => props.dimension === 'project');
 const entityLabel = computed(() => (projectMode.value ? '项目' : '顾问'));
 const store = useDashboardStore();
+const analysisFilter = computed(() => props.filter || store.filter);
 const size = computed(() => props.size);
+const sizeLabel = computed(() =>
+  size.value === 'contracts' ? '签约套数' : size.value === 'cycle' ? '成交周期' : '签约金额',
+);
+const sizeValue = (point: GridPoint) =>
+  size.value === 'contracts'
+    ? point.current.contracts
+    : size.value === 'cycle'
+      ? (point.dealCycle ?? 0)
+      : point.current.amount;
 const selectedName = ref('');
 const pointCity = (point: GridPoint) => point.records[0]?.city || '未分配城市';
 const color = (city: string) => props.cityColors[city] || '#486DE6';
+function transparentColor(hex: string, alpha: number) {
+  const value = parseInt(hex.slice(1), 16);
+  return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${alpha})`;
+}
 const historyMonths = ref(6);
 const frameIndex = ref(5);
 const playing = ref(false);
 let playbackTimer: ReturnType<typeof setInterval> | undefined;
-const history = computed(() =>
-  buildReceptionHistory(props.rows, store.filter, props.dimension, historyMonths.value),
-);
+const monthlyMode = computed(() => analysisFilter.value.periodType === 'month');
+const history = computed(() => {
+  if (monthlyMode.value)
+    return buildReceptionHistory(
+      props.rows,
+      analysisFilter.value,
+      props.dimension,
+      historyMonths.value,
+    );
+  const filter = analysisFilter.value;
+  return [
+    {
+      month: formatStatisticsPeriod(filter),
+      start: filter.metricDateRange?.[0] || filter.period[0] + '-01',
+      end: filter.metricDateRange?.[1] || filter.metricDate || filter.period[1] + '-01',
+      result: buildAdvisorReceptionMatrix(props.rows, filter, props.dimension),
+    },
+  ];
+});
 const currentFrame = computed(
   () => history.value[frameIndex.value] || history.value[history.value.length - 1],
 );
@@ -69,7 +104,7 @@ watch(historyMonths, () => {
   pause();
   frameIndex.value = historyMonths.value - 1;
 });
-watch([() => props.rows, () => store.filter], () => {
+watch([() => props.rows, analysisFilter], () => {
   pause();
   frameIndex.value = historyMonths.value - 1;
   selectedName.value = '';
@@ -112,12 +147,7 @@ function position(value: number, boundaries: number[]) {
 const option = computed<EChartsOption>(() => {
   const x = result.value.xEdges;
   const y = result.value.yEdges;
-  const max = Math.max(
-    1,
-    ...result.value.points.map((p) =>
-      size.value === 'cycle' ? (p.dealCycle ?? 0) : p.current.amount,
-    ),
-  );
+  const max = Math.max(1, ...result.value.points.map((p) => sizeValue(p)));
   const trajectory: (LineSeriesOption | ScatterSeriesOption)[] = [];
   if (selectedName.value) {
     const trail = selectedHistory.value;
@@ -200,7 +230,7 @@ const option = computed<EChartsOption>(() => {
       },
       axisPointer: {
         type: 'cross',
-        crossStyle: { color: '#b7c1d0', type: 'dashed', width: 1 },
+        crossStyle: { color: '#D5DDE8', type: 'dashed', width: 1 },
         label: { show: false },
       },
       backgroundColor: '#fff',
@@ -221,7 +251,7 @@ const option = computed<EChartsOption>(() => {
         const row = (label: string, value: string, highlight = false) =>
           `<div style="display:flex;justify-content:space-between;gap:20px;line-height:24px"><span style="color:#7b8aa3">${label}</span><span style="color:${highlight ? '#1677ff' : '#26394f'};font-weight:${highlight ? 600 : 400}">${value}</span></div>`;
         const divider = '<div style="border-top:1px solid #edf1f7;margin:8px 0"></div>';
-        return `<div style="min-width:250px"><div style="display:flex;justify-content:flex-end;margin-bottom:8px"><span style="padding:1px 6px;border:1px solid #e4eaf3;border-radius:4px;color:#7b8aa3;font-size:11px">气泡大小：${size.value === 'cycle' ? '成交周期' : '签约金额'}</span></div><b style="color:#26394f">${name}</b>${row('统计月份', data?.month || currentFrame.value.month)}${divider}${row('接待人数', fmt(point.current.visitPeople) + ' 人')}${row('日均接待人数', fmt(point.y, 2) + ' 人/日')}${row('到访至签约转化率', fmt(point.x, 2) + '%', true)}${divider}${row('签约套数', fmt(point.current.contracts) + ' 套')}${row('签约金额', fmt(point.current.amount, 2) + ' 万元')}${size.value === 'cycle' ? row('平均成交周期', point.dealCycle == null ? '—' : fmt(point.dealCycle, 1) + ' 天') : ''}${divider}${row('所属区域', point.cell.name, true)}</div>`;
+        return `<div style="min-width:250px"><div style="display:flex;justify-content:flex-end;margin-bottom:8px"><span style="padding:1px 6px;border:1px solid #e4eaf3;border-radius:4px;color:#7b8aa3;font-size:11px">气泡大小：${sizeLabel.value}</span></div><b style="color:#26394f">${name}</b>${row('统计周期', data?.month || currentFrame.value.month)}${divider}${row('接待人数', fmt(point.current.visitPeople) + ' 人')}${row('日均接待人数', fmt(point.y, 2) + ' 人/日')}${row('到访至签约转化率', fmt(point.x, 2) + '%', true)}${divider}${row('签约套数', fmt(point.current.contracts) + ' 套')}${row('签约金额', fmt(point.current.amount, 2) + ' 万元')}${size.value === 'cycle' ? row('平均成交周期', point.dealCycle == null ? '—' : fmt(point.dealCycle, 1) + ' 天') : ''}${divider}${row('所属区域', point.cell.name, true)}</div>`;
       },
     },
     grid: { left: 76, right: 28, top: 38, bottom: 76 },
@@ -253,7 +283,7 @@ const option = computed<EChartsOption>(() => {
         padding: [0, 0, 0, -54],
         fontSize: 11,
         fontWeight: 700,
-        color: '#64748b',
+        color: '#1c2b37',
       },
       axisLabel: {
         formatter: (v: number) => fmt(y[Math.round(v)], 2),
@@ -308,7 +338,7 @@ const option = computed<EChartsOption>(() => {
           blurScope: 'series',
           itemStyle: { opacity: 1, borderWidth: 2 },
         },
-        blur: { itemStyle: { opacity: 0.5 } },
+        blur: { itemStyle: { opacity: 1 } },
         data: replayPoints.value.map((point) => ({
           id: point.name,
           name: point.name,
@@ -320,11 +350,7 @@ const option = computed<EChartsOption>(() => {
           symbolSize:
             point.name === selectedName.value && frameIndex.value < historyMonths.value - 1
               ? 9
-              : Math.sqrt(
-                  (size.value === 'cycle' ? (point.dealCycle ?? 0) : point.current.amount) / max,
-                ) *
-                  46 +
-                5,
+              : Math.sqrt(sizeValue(point) / max) * 46 + 5,
           label: {
             show: point.name === selectedName.value && frameIndex.value < historyMonths.value - 1,
             formatter: temporalLabel(frameIndex.value),
@@ -332,21 +358,32 @@ const option = computed<EChartsOption>(() => {
             color: color(pointCity(point)),
             fontSize: 10,
           },
-          value: [
-            position(point.x, x),
-            position(point.y, y),
-            size.value === 'cycle' ? (point.dealCycle ?? 0) : point.current.amount,
-          ],
+          value: [position(point.x, x), position(point.y, y), sizeValue(point)],
           itemStyle: {
-            color: color(pointCity(point)),
-            opacity:
+            color: transparentColor(
+              color(pointCity(point)),
               props.search && !filtered.value.some((item) => item.name === point.name)
                 ? 0.08
                 : selectedName.value && selectedName.value !== point.name
-                  ? 0.5
-                  : 0.9,
+                  ? 0.3
+                  : selectedName.value === point.name
+                    ? 1
+                    : 0.9,
+            ),
+            opacity: 1,
             borderColor: selectedName.value === point.name ? color(pointCity(point)) : '#fff',
             borderWidth: selectedName.value === point.name ? 3 : 1,
+          },
+          emphasis: {
+            itemStyle: { color: color(pointCity(point)), opacity: 1 },
+          },
+          blur: {
+            itemStyle: {
+              color: transparentColor(color(pointCity(point)), 0.3),
+              opacity: 1,
+              borderColor: '#fff',
+              borderWidth: 1,
+            },
           },
         })),
       },
@@ -362,7 +399,9 @@ const option = computed<EChartsOption>(() => {
       <p>
         横轴为到访至签约转化率，纵轴为日均接待人数。每个气泡代表一个{{
           entityLabel
-        }}，颜色区分所属城市，通过右侧共用项目列表进行筛选，点击气泡查看历史位置轨迹。
+        }}，颜色区分所属城市，通过右侧共用项目列表进行筛选。<template v-if="monthlyMode"
+          >点击气泡查看历史位置轨迹。</template
+        >
       </p>
     </header>
     <div class="matrix-body">
@@ -379,7 +418,7 @@ const option = computed<EChartsOption>(() => {
         <div class="matrix-x-title">X · 到访至签约转化率（%）</div>
       </div>
     </div>
-    <div class="matrix-timeline">
+    <div v-if="monthlyMode" class="matrix-timeline">
       <button
         class="timeline-play"
         :aria-label="playing ? '暂停月度回放' : '播放月度回放'"
@@ -489,7 +528,7 @@ const option = computed<EChartsOption>(() => {
   right: 28px;
   bottom: 18px;
   text-align: right;
-  color: #64748b;
+  color: #1c2b37;
   font-size: 11px;
   font-weight: 700;
   pointer-events: none;

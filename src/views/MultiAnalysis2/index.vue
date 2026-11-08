@@ -15,24 +15,56 @@ import {
 } from '../../mocks/projectSalesStatus';
 import type { BubbleSizeMetric } from '../../utils/dealCycle';
 const store = useDashboardStore();
-const selectedChannel = computed({
-  get: () => store.filter.channel,
-  set: (channel: string) =>
-    store.applyFilter({ ...store.filter, channel, channelObject: '', channelDetail: '' }),
-});
+const channelGroup = ref('全渠道');
+const selectedChannel = ref('');
+const onlineChannel = channelCatalog.find((channel) => channel.id === 'online')!;
+const subChannels = computed(() =>
+  channelGroup.value === '线上渠道'
+    ? onlineChannel.objects.map((item) => ({ value: item.id, name: item.name }))
+    : channelCatalog
+        .filter((channel) => channel.id !== 'online')
+        .map((item) => ({ value: item.name, name: item.name })),
+);
+const channelRows = computed(() =>
+  store.rows.filter(
+    (row) =>
+      channelGroup.value === '全渠道' ||
+      (channelGroup.value === '线上渠道'
+        ? row.channel === onlineChannel.name
+        : row.channel !== onlineChannel.name),
+  ),
+);
+watch(
+  channelGroup,
+  () => {
+    selectedChannel.value = '';
+  },
+  { flush: 'sync' },
+);
+const analysisFilter = computed(() => ({
+  ...store.filter,
+  channel:
+    channelGroup.value === '线上渠道'
+      ? onlineChannel.name
+      : channelGroup.value === '线下渠道'
+        ? selectedChannel.value
+        : '',
+  channelObject: channelGroup.value === '线上渠道' ? selectedChannel.value : '',
+  channelDetail: '',
+}));
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const advisorRows = computed(() =>
-  store.rows.some((row) => row.advisorId)
-    ? store.rows
+  channelRows.value.some((row) => row.advisorId)
+    ? channelRows.value
     : mock
-      ? splitAdvisorRecords(store.rows)
+      ? splitAdvisorRecords(channelRows.value)
       : [],
 );
 const cityTier = ref('全部');
 const activeGroup = ref('');
 const activeProject = ref('');
 const search = ref('');
-const size = ref<BubbleSizeMetric>('current');
+const size = ref<BubbleSizeMetric | 'contracts'>('current');
 const salesStatus = ref<'全部' | ProjectSalesStatus>('全部');
 const cityTiers = ['全部', '一线城市', '新一线城市', '二线城市', '三四线城市'];
 function tierForCity(city: string) {
@@ -84,13 +116,13 @@ const cityColors = computed(() =>
 );
 const color = (city: string) => cityColors.value[city] || conversionMatrixPalette[0];
 const tierRows = computed(() =>
-  store.rows.filter(
+  channelRows.value.filter(
     (row) =>
       (cityTier.value === '全部' || tierForCity(row.city) === cityTier.value) &&
       (salesStatus.value === '全部' || projectSalesStatus[row.project] === salesStatus.value),
   ),
 );
-const currentTierRows = computed(() => filterRows(tierRows.value, store.filter));
+const currentTierRows = computed(() => filterRows(tierRows.value, analysisFilter.value));
 const groups = computed(() => [...new Set(currentTierRows.value.map((row) => row.city))]);
 const projectCount = (city: string) =>
   new Set(currentTierRows.value.filter((row) => row.city === city).map((row) => row.project)).size;
@@ -102,7 +134,7 @@ const commonAdvisorRows = computed(() =>
   advisorRows.value.filter((row) => allowedProjects.value.includes(row.project)),
 );
 const projectList = computed(() =>
-  groupRows(filterRows(commonRows.value, store.filter), 'project')
+  groupRows(filterRows(commonRows.value, analysisFilter.value), 'project')
     .filter((row) => row.name.toLowerCase().includes(search.value.trim().toLowerCase()))
     .map((row) => ({ name: row.name, city: row.records[0].city })),
 );
@@ -115,7 +147,7 @@ function toggleGroup(city: string) {
 function selectProject(project: string) {
   activeProject.value = activeProject.value === project ? '' : project;
 }
-watch([cityTier, salesStatus, () => store.filter], () => {
+watch([cityTier, salesStatus, analysisFilter], () => {
   activeGroup.value = '';
   activeProject.value = '';
 });
@@ -167,10 +199,23 @@ watch(activeGroup, () => {
     <div class="matrix-toolbar">
       <div class="matrix-controls">
         <div class="project-stage-control">
+          <span>气泡大小</span>
+          <div class="matrix-segmented segmented-selector">
+            <button :class="{ active: size === 'current' }" @click="size = 'current'">
+              签约金额</button
+            ><button :class="{ active: size === 'contracts' }" @click="size = 'contracts'">
+              签约套数</button
+            ><button :class="{ active: size === 'cycle' }" @click="size = 'cycle'">成交周期</button>
+          </div>
+        </div>
+        <div class="project-stage-control filter-group-spaced">
           <span>项目阶段</span>
           <div class="matrix-segmented segmented-selector" role="group" aria-label="项目阶段">
             <button
-              v-for="status in ['全部', ...projectSalesStatuses]"
+              v-for="status in [
+                '全部',
+                ...projectSalesStatuses.filter((status) => status !== '未开盘'),
+              ]"
               :key="status"
               :class="{ active: salesStatus === status }"
               :aria-pressed="salesStatus === status"
@@ -180,31 +225,44 @@ watch(activeGroup, () => {
             </button>
           </div>
         </div>
-        <div class="project-stage-control filter-group-spaced">
+        <div class="project-stage-control filter-group-spaced channel-filter-control">
           <span>渠道</span>
-          <div class="matrix-segmented segmented-selector" role="group" aria-label="选择渠道">
-            <button
-              :class="{ active: !selectedChannel }"
-              :aria-pressed="!selectedChannel"
-              @click="selectedChannel = ''"
+          <div class="channel-levels">
+            <div class="matrix-segmented segmented-selector" role="group" aria-label="渠道分类">
+              <button
+                v-for="group in ['全渠道', '线下渠道', '线上渠道']"
+                :key="group"
+                :class="{ active: channelGroup === group }"
+                :aria-pressed="channelGroup === group"
+                @click="channelGroup = group"
+              >
+                {{ group }}
+              </button>
+            </div>
+            <div
+              v-if="channelGroup !== '全渠道'"
+              class="matrix-segmented segmented-selector"
+              role="group"
+              aria-label="细分渠道"
             >
-              全部
-            </button>
-            <button
-              v-for="channel in channelCatalog"
-              :key="channel.id"
-              :class="{ active: selectedChannel === channel.name }"
-              :aria-pressed="selectedChannel === channel.name"
-              @click="selectedChannel = channel.name"
-            >
-              {{ channel.name }}
-            </button>
+              <button
+                :class="{ active: !selectedChannel }"
+                :aria-pressed="!selectedChannel"
+                @click="selectedChannel = ''"
+              >
+                全部
+              </button>
+              <button
+                v-for="channel in subChannels"
+                :key="channel.value"
+                :class="{ active: selectedChannel === channel.value }"
+                :aria-pressed="selectedChannel === channel.value"
+                @click="selectedChannel = channel.value"
+              >
+                {{ channel.name }}
+              </button>
+            </div>
           </div>
-        </div>
-        <span class="filter-group-spaced">气泡大小</span>
-        <div class="matrix-segmented segmented-selector">
-          <button :class="{ active: size === 'current' }" @click="size = 'current'">签约金额</button
-          ><button :class="{ active: size === 'cycle' }" @click="size = 'cycle'">成交周期</button>
         </div>
       </div>
     </div>
@@ -214,6 +272,7 @@ watch(activeGroup, () => {
       <AdvisorNineGrid
         :rows="commonRows"
         dimension="project"
+        :filter="analysisFilter"
         :size="size"
         :selected-project="activeProject"
         :search="search"
@@ -221,6 +280,7 @@ watch(activeGroup, () => {
       />
       <AdvisorNineGrid
         :rows="commonAdvisorRows"
+        :filter="analysisFilter"
         :size="size"
         :selected-project="activeProject"
         :search="search"
@@ -255,7 +315,12 @@ watch(activeGroup, () => {
       </ul>
     </aside>
   </div>
-  <ProjectMarketingTable advisor-list :projects="tableProjects" />
+  <ProjectMarketingTable
+    advisor-list
+    :projects="tableProjects"
+    :filter="analysisFilter"
+    :rows="channelRows"
+  />
 </template>
 <style scoped>
 .matrix-shared-filters {
@@ -367,20 +432,34 @@ watch(activeGroup, () => {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 3px;
 }
 .matrix-controls {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 7px;
   flex-shrink: 0;
-  color: #738194;
+  color: #667380;
   font-size: 12px;
 }
 .project-stage-control {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+.channel-filter-control {
+  align-items: flex-start;
+}
+.channel-filter-control > span {
+  line-height: 27px;
+}
+.channel-levels {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
 }
 .project-stage-control > span {
   flex-shrink: 0;
@@ -410,7 +489,7 @@ watch(activeGroup, () => {
 .city-filter-label {
   flex-shrink: 0;
   width: 64px;
-  color: #7b8aa3;
+  color: #667380;
   white-space: nowrap;
 }
 .city-legend {
@@ -428,7 +507,7 @@ watch(activeGroup, () => {
   gap: 6px;
   border: 0;
   background: transparent;
-  color: #536985;
+  color: #667380;
   padding: 0;
   font: inherit;
   line-height: 20px;
@@ -442,16 +521,32 @@ watch(activeGroup, () => {
   border: 1px solid transparent;
   border-radius: 4px;
 }
+.matrix-shared-filters .segmented-selector > button:not(.active) {
+  color: #667380;
+}
+.matrix-shared-filters .segmented-selector > button:not(.active):hover {
+  color: #1c2b37;
+}
 .city-legend button.all-cities.active {
   border-color: #1677ff;
   background: #1677ff;
   color: #ffffff;
+  font-weight: 600;
 }
 .city-legend button.city-muted {
   opacity: 0.3;
 }
 .city-legend button.active {
   color: #1677ff;
+}
+.city-legend button:not(.all-cities) {
+  color: #1c2b37;
+  font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+.city-legend button:not(.all-cities).active {
+  font-weight: 700;
 }
 .city-legend i {
   width: 8px;

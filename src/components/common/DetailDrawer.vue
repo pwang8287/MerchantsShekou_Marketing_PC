@@ -9,7 +9,7 @@ import { nationalChannelRows } from '../../utils/channelBenchmark';
 import { formatStatisticsPeriod } from '../../utils/statisticsPeriod';
 import CustomerStructureAnalysis from '../../views/MarketingAnalysis/components/CustomerStructureAnalysis.vue';
 import AdvisorChannelAnalysis from '../dashboard/AdvisorChannelAnalysis.vue';
-import ChannelOrganizationTable from '../dashboard/ChannelOrganizationTable.vue';
+import ChannelOrganizationRanking from '../dashboard/ChannelOrganizationRanking.vue';
 import { simulatedDealCycle } from '../../utils/dealCycle';
 const store = useDashboardStore();
 const advisorName = computed(() => {
@@ -105,10 +105,11 @@ const nationalRows = computed(() =>
       :rows="store.detailRows"
       :national-rows="nationalRows"
     />
-    <ChannelOrganizationTable
+    <ChannelOrganizationRanking
       v-if="store.detailChannel && !store.projectScope && !store.filter.project"
       :rows="store.detailRows"
-      :project-level="Boolean(store.cityScope || store.filter.organization)"
+      :channel="store.detailChannel"
+      :metric="store.detailChannelMetric"
     />
     <el-alert
       v-if="!store.detailChannel && !advisorName"

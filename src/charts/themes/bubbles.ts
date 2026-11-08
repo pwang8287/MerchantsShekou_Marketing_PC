@@ -5,7 +5,7 @@ export const channelColors: Record<string, string> = {
   自渠自拓: '#91C98B',
   线上获客: '#A98BEA',
   老带新: '#E985BB',
-  全面营销: '#55C5B4',
+  全民营销: '#55C5B4',
   其他: '#E8B868',
 };
 export const bubblePalette = [

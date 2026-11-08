@@ -68,7 +68,7 @@ export const channelCatalog: ChannelCategory[] = [
   },
   {
     id: 'referral',
-    name: '全面营销',
+    name: '全民营销',
     alias: '全民营销',
     objects: [
       object('referral-staff', '员工推荐', ['员工推荐计划（模拟）']),
