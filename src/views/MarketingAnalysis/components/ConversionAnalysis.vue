@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import type { EChartsOption } from 'echarts';
 import BaseChart from '../../../charts/components/BaseChart.vue';
+import ConversionFunnelVisual from '../../../components/dashboard/ConversionFunnelVisual.vue';
 import ConversionAttribution from './ConversionAttribution.vue';
 import { useDashboardStore } from '../../../stores/dashboard';
 import { bubbleColor } from '../../../charts/themes/bubbles';
@@ -204,67 +205,12 @@ const structure = computed<EChartsOption>(() => {
       </div>
     </header>
     <div class="conversion-layout">
-      <div class="conversion-funnel">
-        <h4>客户转化漏斗</h4>
-        <div class="conversion-focus">
-          <span>重点关注：到访→签约</span>
-          <strong>{{
-            totals.visitPeople ? fmt((totals.contracts / totals.visitPeople) * 100, 1) + '%' : '—'
-          }}</strong>
-        </div>
-        <div class="funnel-stage-list" :class="{ 'has-selection': selectedIndex !== null }">
-          <div v-for="(stage, index) in stages" :key="stage.key" class="funnel-stage-row">
-            <svg
-              v-if="index"
-              class="stage-flow-arrow"
-              viewBox="0 0 100 84"
-              preserveAspectRatio="none"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                :d="`M ${101.6 - index * 6.6} 0 H ${107.5 - index * 6.6} Q ${109 - index * 6.6} 0 ${109 - index * 6.6} 4 V 80 Q ${109 - index * 6.6} 84 ${107.5 - index * 6.6} 84 H ${95 - index * 6.6}`"
-                stroke-dasharray="4 4"
-                vector-effect="non-scaling-stroke"
-              />
-              <path
-                :d="`M ${98 - index * 6.6} 80 L ${95 - index * 6.6} 84 L ${98 - index * 6.6} 88`"
-                vector-effect="non-scaling-stroke"
-              />
-            </svg>
-            <i
-              v-if="index"
-              class="stage-rate-connector"
-              :style="{ left: `calc((100% - 120px) * ${1.09 - index * 0.066})` }"
-              aria-hidden="true"
-            />
-            <button
-              class="funnel-stage"
-              :class="{ selected: selectedIndex === index }"
-              :style="{ '--stage-color': stage.color, width: `${100 - index * 15}%` }"
-              :aria-pressed="selectedIndex === index"
-              @click="toggleStage(index)"
-            >
-              <span>{{ stage.name }}</span>
-              <strong
-                >{{ fmt(stage.value) }} <small>{{ stage.unit }}</small></strong
-              >
-            </button>
-            <div v-if="index" class="stage-conversion">
-              <span
-                >{{ stageDefinitions[index - 1].name.replace(/数量|人数|套数/g, '') }}至{{
-                  stage.name.replace(/数量|人数|套数/g, '')
-                }}转化率</span
-              >
-              <strong>{{ fmt(stage.rate || 0, 1) }}%</strong>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ConversionFunnelVisual
+        :stages="stages"
+        :totals="totals"
+        :selected-index="selectedIndex"
+        @select="toggleStage"
+      />
       <div class="composition-panel" :style="{ '--stage-color': selected.color }">
         <div class="composition-tabs" role="tablist" aria-label="渠道分析方式">
           <button
@@ -404,128 +350,6 @@ h4 {
   margin: 0;
   font-size: 13px;
   color: #14243d;
-}
-.conversion-funnel {
-  min-width: 0;
-  align-self: center;
-  width: 100%;
-}
-.conversion-focus {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 6px;
-  background: #f3f7ff;
-  color: #435775;
-  font-size: 13px;
-}
-.conversion-focus strong {
-  color: #2873ed;
-  font-size: 15px;
-}
-.funnel-stage-list {
-  padding-top: 12px;
-}
-.funnel-stage-row {
-  position: relative;
-  padding-right: 120px;
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-.funnel-stage-row:last-child {
-  margin-bottom: 0;
-}
-.funnel-stage {
-  flex: none;
-  height: 72px;
-  border: 0;
-  clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
-  background: var(--stage-color);
-  opacity: 1;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  cursor: pointer;
-  font: inherit;
-  transition: opacity 0.15s;
-}
-.funnel-stage.selected,
-.funnel-stage:hover,
-.funnel-stage:focus-visible {
-  opacity: 1;
-}
-.funnel-stage.selected {
-  background: #2873ed;
-}
-.funnel-stage-list.has-selection .funnel-stage:not(.selected):not(:hover):not(:focus-visible) {
-  opacity: 0.35;
-}
-.funnel-stage > span {
-  font-size: 12px;
-}
-.funnel-stage strong {
-  font-size: 19px;
-}
-.funnel-stage small {
-  font-size: 11px;
-  font-weight: 400;
-}
-.stage-conversion {
-  position: absolute;
-  right: 0;
-  top: -36px;
-  width: 100px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: center;
-}
-.stage-flow-arrow {
-  position: absolute;
-  left: 0;
-  top: -48px;
-  width: calc(100% - 120px);
-  height: 84px;
-  overflow: visible;
-  color: #8fb6ef;
-  pointer-events: none;
-}
-.stage-rate-connector {
-  position: absolute;
-  top: -6px;
-  right: 104px;
-  height: 1.5px;
-  background: repeating-linear-gradient(to right, #8fb6ef 0 4px, transparent 4px 8px);
-  border-radius: 2px;
-  pointer-events: none;
-}
-.stage-rate-connector::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  top: -1.25px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #8fb6ef;
-}
-.stage-conversion span {
-  font-size: 10px;
-  line-height: 14px;
-  color: #7b8da8;
-}
-.stage-conversion strong {
-  font-size: 19px;
-  line-height: 24px;
-  font-weight: 600;
-  color: #2873ed;
 }
 .composition-panel {
   min-width: 0;

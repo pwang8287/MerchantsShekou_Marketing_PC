@@ -143,7 +143,7 @@ const option = computed<EChartsOption>(() => ({
       value: row.values[metric.key],
       itemStyle: {
         color: metric.color,
-        opacity: row.average ? 0.6 : 1,
+        opacity: row.average ? 0.25 : 1,
         borderRadius: metric.unit === '%' ? undefined : [3, 3, 0, 0],
         borderWidth: row.average ? 1 : 0,
         borderType: 'dashed',

@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { MarketingPerformanceMetric } from '../../types';
 import BaseChart from '../../charts/components/BaseChart.vue';
 import { donutOption } from '../../charts/options';
 import { bubblePalette } from '../../charts/themes/bubbles';
 import { groupRows, fmt, summarize } from '../../utils/metrics';
+import { matchesChannel } from '../../utils/channels';
+import { useDashboardStore } from '../../stores/dashboard';
+const store = useDashboardStore();
 
 const props = defineProps<{
   channel: string;
   rows: MarketingPerformanceMetric[];
   nationalRows?: MarketingPerformanceMetric[];
 }>();
+const grouping = computed(() => (props.channel === '线下渠道' ? 'channel' : 'channelObject'));
 const nationalGroups = computed(
   () =>
     new Map(
       groupRows(
-        (props.nationalRows || []).filter((r) => r.channel === props.channel),
-        'channelObject',
+        (props.nationalRows || []).filter((r) => matchesChannel(r.channel, props.channel)),
+        grouping.value,
       ).map((row) => [row.name, row]),
     ),
 );
@@ -26,8 +30,8 @@ function nationalRate(name: string) {
 }
 const groups = computed(() =>
   groupRows(
-    props.rows.filter((r) => r.channel === props.channel),
-    'channelObject',
+    props.rows.filter((r) => matchesChannel(r.channel, props.channel)),
+    grouping.value,
   ),
 );
 const total = computed(() => summarize(groups.value.flatMap((r) => r.records)));
@@ -38,9 +42,45 @@ const color = (name: string) =>
       groups.value.findIndex((r) => r.name === name),
     ) % bubblePalette.length
   ];
-const option = computed(() =>
-  donutOption(groups.value, { showLegend: false, colorForName: color }),
+const activeChannel = ref('');
+watch(
+  () => props.rows,
+  () => {
+    activeChannel.value = '';
+  },
 );
+function hoverChannel(row: { name: string }) {
+  activeChannel.value = row.name;
+}
+function rowClassName({ row }: { row: { name: string } }) {
+  return row.name === activeChannel.value ? 'channel-hovered' : '';
+}
+const option = computed(() => {
+  const result = donutOption(groups.value, { showLegend: false, colorForName: color });
+  result.tooltip = {
+    trigger: 'item',
+    confine: true,
+    backgroundColor: '#fff',
+    borderColor: '#dce5f2',
+    textStyle: { color: '#435775', fontSize: 12 },
+    formatter: (params: unknown) => {
+      const item = params as { name: string; value: number; percent: number; marker: string };
+      return `${item.marker}${item.name}<br/>线索数量：${fmt(Number(item.value))} 组<br/>渠道占比：${fmt(item.percent, 2)}%`;
+    },
+  };
+  if (Array.isArray(result.series)) {
+    result.series = result.series.map((series) =>
+      series.type === 'pie'
+        ? {
+            ...series,
+            emphasis: { focus: 'self', scale: true, scaleSize: 5, itemStyle: { opacity: 1 } },
+            blur: { itemStyle: { opacity: 0.25 } },
+          }
+        : series,
+    );
+  }
+  return result;
+});
 const percent = (value: number, denominator: number) =>
   denominator ? `${fmt((value / denominator) * 100, 1)}%` : '—';
 </script>
@@ -53,11 +93,33 @@ const percent = (value: number, denominator: number) =>
       </div>
     </header>
     <div class="secondary-channel-body">
-      <BaseChart :option="option" :height="260" :empty="!groups.length" unit="组" />
-      <el-table :data="groups" size="small" empty-text="当前渠道暂无数据">
+      <BaseChart
+        :option="option"
+        :height="260"
+        :empty="!groups.length"
+        unit="组"
+        :highlight-name="activeChannel"
+        highlight-tooltip
+        @hover="activeChannel = $event"
+        @leave="activeChannel = ''"
+      />
+      <el-table
+        :data="groups"
+        size="small"
+        empty-text="当前渠道暂无数据"
+        :row-class-name="rowClassName"
+        @cell-mouse-enter="hoverChannel"
+        @mouseleave="activeChannel = ''"
+      >
         <el-table-column label="二级渠道" prop="name" min-width="115">
           <template #default="{ row }"
-            ><span class="secondary-channel-name"
+            ><button
+              v-if="channel === '线下渠道'"
+              class="secondary-channel-name secondary-channel-link"
+              @click="store.drill(row.name, row.records, row.name, 'visitPeople')"
+            >
+              <i :style="{ background: color(row.name) }"></i>{{ row.name }}</button
+            ><span v-else class="secondary-channel-name"
               ><i :style="{ background: color(row.name) }"></i>{{ row.name }}</span
             ></template
           >
@@ -124,10 +186,39 @@ const percent = (value: number, denominator: number) =>
   white-space: nowrap;
   font-size: 11px;
 }
+.secondary-channel-body :deep(.channel-hovered > td.el-table__cell) {
+  background: #eff6ff;
+  box-shadow:
+    inset 0 1px #b7d6ff,
+    inset 0 -1px #b7d6ff;
+}
+.secondary-channel-body :deep(.channel-hovered > td:first-child) {
+  box-shadow:
+    inset 1px 0 #b7d6ff,
+    inset 0 1px #b7d6ff,
+    inset 0 -1px #b7d6ff;
+  border-radius: 4px 0 0 4px;
+}
+.secondary-channel-body :deep(.channel-hovered > td:last-child) {
+  box-shadow:
+    inset -1px 0 #b7d6ff,
+    inset 0 1px #b7d6ff,
+    inset 0 -1px #b7d6ff;
+  border-radius: 0 4px 4px 0;
+}
+
 .secondary-channel-name {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+.secondary-channel-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #4285f4;
+  font: inherit;
+  cursor: pointer;
 }
 .secondary-channel-name i {
   width: 10px;

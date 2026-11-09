@@ -14,6 +14,7 @@ const props = withDefaults(
     transition?: boolean;
     hoverOnlyAxisPointer?: boolean;
     highlightName?: string;
+    highlightTooltip?: boolean;
     pinnedTooltip?: { seriesId: string; dataIndex: number };
   }>(),
   { loading: false, empty: false, error: '', height: 190, unit: '', transition: false },
@@ -28,6 +29,20 @@ function syncHighlight() {
   if (props.highlightName === undefined) return;
   chart?.dispatchAction({ type: 'downplay' });
   if (props.highlightName) chart?.dispatchAction({ type: 'highlight', name: props.highlightName });
+  if (props.highlightTooltip) {
+    const series = Array.isArray(props.option.series) ? props.option.series : [props.option.series];
+    const seriesIndex = series.findIndex((item) => item?.type === 'pie');
+    const data = seriesIndex >= 0 ? series[seriesIndex]?.data : [];
+    const dataIndex = Array.isArray(data)
+      ? data.findIndex(
+          (item) =>
+            item && typeof item === 'object' && 'name' in item && item.name === props.highlightName,
+        )
+      : -1;
+    chart?.dispatchAction(
+      dataIndex >= 0 ? { type: 'showTip', seriesIndex, dataIndex } : { type: 'hideTip' },
+    );
+  }
 }
 function updateHoverPointer(trigger: 'mousemove' | 'leave', x?: number, y?: number) {
   chart?.dispatchAction({

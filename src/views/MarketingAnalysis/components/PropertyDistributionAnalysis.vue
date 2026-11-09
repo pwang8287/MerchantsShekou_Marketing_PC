@@ -191,7 +191,7 @@ function barOption(data: { name: string; value: number }[], selectable = false):
           ...row,
           itemStyle: {
             color: '#2873ed',
-            opacity: row.average || (selectable && row.name !== area.value) ? 0.6 : 1,
+            opacity: row.average ? 0.25 : selectable && row.name !== area.value ? 0.6 : 1,
             borderRadius: [5, 5, 0, 0],
             borderWidth: row.average ? 1 : 0,
             borderType: 'dashed',
@@ -250,7 +250,11 @@ function selectArea(name: string) {
           @select="selectProperty"
         />
       </div>
-      <span class="distribution-arrow" aria-hidden="true">→</span>
+      <span class="distribution-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M4 10h12M11 5l5 5-5 5" />
+        </svg>
+      </span>
       <section class="distribution-chart">
         <header>
           <h3>{{ property || '全部业态' }} · {{ metricTitle }} · 面积段分析</h3>
@@ -263,7 +267,11 @@ function selectArea(name: string) {
           @select="selectArea"
         />
       </section>
-      <span class="distribution-arrow" aria-hidden="true">→</span>
+      <span class="distribution-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M4 10h12M11 5l5 5-5 5" />
+        </svg>
+      </span>
       <section class="distribution-chart">
         <header>
           <h3>{{ area }} · {{ metricTitle }}</h3>
@@ -326,7 +334,7 @@ function selectArea(name: string) {
 }
 .distribution-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 0.9fr) 20px minmax(0, 1fr) 20px minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 0.9fr) 24px minmax(0, 1fr) 24px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   flex: 1;
@@ -358,9 +366,23 @@ function selectArea(name: string) {
   line-height: 22px;
 }
 .distribution-arrow {
-  color: #2873ed;
-  font-size: 25px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+  border-radius: 6px;
+  background: #f3f7ff;
+  color: #527dcc;
+  pointer-events: none;
+}
+.distribution-arrow svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 @media (max-width: 1150px) {
   .property-distribution {

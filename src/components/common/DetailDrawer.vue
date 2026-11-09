@@ -100,7 +100,7 @@ const nationalRows = computed(() =>
       :metrics="['amount', 'leads', 'visits', 'contracts', 'conversion']"
     />
     <SecondaryChannelAnalysis
-      v-if="store.detailChannel"
+      v-if="store.detailChannel === '线上获客' || store.detailChannel === '线上渠道'"
       :channel="store.detailChannel"
       :rows="store.detailRows"
       :national-rows="nationalRows"

@@ -3,7 +3,7 @@ import { buildChannelFunnel } from '../src/utils/channelFunnel';
 import { channelCatalog } from '../src/mocks/channels';
 import { records } from '../src/mocks/data';
 import { filterRows, groupRows, summarize } from '../src/utils/metrics';
-import { nationalChannelRows } from '../src/utils/channelBenchmark';
+import { nationalChannelRows, comparisonChannelRows } from '../src/utils/channelBenchmark';
 import type { DashboardFilter } from '../src/types';
 
 for (const { name } of channelCatalog) {
@@ -95,3 +95,37 @@ assert.deepEqual(nationalChannelRows([], cityFilter, '线上获客'), []);
 console.log(
   '通过：全国渠道基准移除地域和项目限制、保留统计日期、同渠道同环节加权汇总及二级渠道匹配。',
 );
+
+// 线上、线下汇总必须无重叠且覆盖全部渠道，弹窗漏斗与汇总保持一致。
+const monthRecords = records.filter((row) => row.period === '2026-09');
+const onlineStages = buildChannelFunnel(monthRecords, '线上渠道');
+const offlineStages = buildChannelFunnel(monthRecords, '线下渠道');
+const allTotals = summarize(monthRecords);
+assert.equal(onlineStages[1].value + offlineStages[1].value, allTotals.visitPeople);
+assert.equal(onlineStages[0].value + offlineStages[0].value, allTotals.leads);
+assert.equal(onlineStages[3].value + offlineStages[3].value, allTotals.contracts);
+assert.deepEqual(onlineStages, buildChannelFunnel(monthRecords, '线上获客'));
+assert.ok(
+  nationalChannelRows(records, cityFilter, '线下渠道').every((row) => row.channel !== '线上获客'),
+);
+
+const comparisonFilter: DashboardFilter = {
+  ...cityFilter,
+  channel: '',
+  periodType: 'month',
+  periodAnchor: '2026-09',
+  metricDateRange: ['2026-09-01', '2026-09-17'],
+};
+for (const [mode, month] of [
+  ['mom', '2026-08'],
+  ['yoy', '2025-09'],
+] as const) {
+  const actual = comparisonChannelRows(records, comparisonFilter, '线下渠道', mode);
+  const expected = filterRows(records, {
+    ...comparisonFilter,
+    period: [month, month],
+    metricDateRange: [month + '-01', month + '-17'],
+  }).filter((row) => row.channel !== '线上获客');
+  assert.deepEqual(actual, expected);
+}
+console.log('通过：线上/线下渠道汇总及历史对比的组织、渠道、同期日期范围隔离。');

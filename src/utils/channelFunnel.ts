@@ -1,8 +1,9 @@
 import type { MarketingPerformanceMetric } from '../types';
 import { summarize } from './metrics';
+import { matchesChannel } from './channels';
 
 export function buildChannelFunnel(rows: MarketingPerformanceMetric[], channel: string) {
-  const records = rows.filter((r) => r.channel === channel);
+  const records = rows.filter((r) => matchesChannel(r.channel, channel));
   const totals = summarize(records);
   const values = [
     { name: '线索', value: totals.leads, unit: '组' },

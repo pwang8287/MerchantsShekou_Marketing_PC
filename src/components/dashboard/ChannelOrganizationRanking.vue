@@ -5,6 +5,7 @@ import type { MarketingPerformanceMetric } from '../../types';
 import { useDashboardStore } from '../../stores/dashboard';
 import BaseChart from '../../charts/components/BaseChart.vue';
 import { fmt } from '../../utils/metrics';
+import { comparisonChannelRows } from '../../utils/channelBenchmark';
 import {
   channelRankingDimensions,
   channelRankingRows,
@@ -33,26 +34,56 @@ watch(
 const labels = { group: '城市群', organization: '城市', project: '项目' };
 const metricDefinition = computed(() => channelRankingMetrics[props.metric]);
 const groups = computed(() => channelRankingRows(props.rows, activeDimension.value, props.metric));
+const comparisonSeries = computed(() => {
+  const definitions = [{ key: 'current', name: '本期值', color: '#2873ed', rows: props.rows }];
+  if (store.filter.periodType === 'month')
+    definitions.push({
+      key: 'mom',
+      name: '上个月值',
+      color: '#99a5b5',
+      rows: comparisonChannelRows(store.rows, store.filter, props.channel, 'mom') || [],
+    });
+  if (store.filter.periodType === 'month' || store.filter.periodType === 'year')
+    definitions.push({
+      key: 'yoy',
+      name: '去年同期值',
+      color: '#c4cbd4',
+      rows: comparisonChannelRows(store.rows, store.filter, props.channel, 'yoy') || [],
+    });
+  return definitions.map((item) => ({
+    ...item,
+    values: new Map(
+      channelRankingRows(item.rows, activeDimension.value, props.metric).map((row) => [
+        row.name,
+        row.value,
+      ]),
+    ),
+  }));
+});
+const categories = computed(() => {
+  const result = groups.value.map((row) => ({ name: row.name, mean: false }));
+  if (result.length)
+    result.splice(Math.ceil(result.length / 2), 0, {
+      name: `${labels[activeDimension.value]}均值`,
+      mean: true,
+    });
+  return result;
+});
 const option = computed<EChartsOption>(() => ({
-  grid: { left: 55, right: 20, top: 30, bottom: groups.value.length > 12 ? 90 : 60 },
+  grid: { left: 55, right: 20, top: 36, bottom: groups.value.length > 12 ? 100 : 78 },
+  legend: { bottom: 0, textStyle: { color: '#667380', fontSize: 11 } },
   tooltip: {
-    trigger: 'item',
+    trigger: 'axis',
     confine: true,
     backgroundColor: '#fff',
     borderColor: '#dfe7f1',
     textStyle: { color: '#43546e', fontSize: 12 },
-    formatter: (raw: unknown) => {
-      const item = groups.value[(raw as { dataIndex: number }).dataIndex];
-      const name = item.name.replace(
-        /[&<>"']/g,
-        (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
-      );
-      return `${name}<br/>${metricDefinition.value.name}：${fmt(item.value)} ${metricDefinition.value.unit}`;
-    },
+    valueFormatter: (value) =>
+      value == null ? '—' : `${fmt(Number(value), 2)} ${metricDefinition.value.unit}`,
   },
   xAxis: {
     type: 'category',
-    data: groups.value.map((row) => row.name),
+    data: categories.value.map((row) => row.name),
     axisTick: { show: false },
     axisLine: { lineStyle: { color: '#666666' } },
     axisLabel: {
@@ -73,21 +104,32 @@ const option = computed<EChartsOption>(() => ({
     groups.value.length > 12
       ? [{ type: 'slider', startValue: 0, endValue: 11, height: 15, bottom: 2 }, { type: 'inside' }]
       : [],
-  series: [
-    {
-      type: 'bar',
-      barMaxWidth: 28,
-      itemStyle: { color: '#2873ed', borderRadius: [4, 4, 0, 0] },
-      label: {
-        show: true,
-        position: 'top',
-        color: '#71809a',
-        fontSize: 11,
-        formatter: (params) => fmt(Number(params.value)),
-      },
-      data: groups.value.map((row) => row.value),
+  series: comparisonSeries.value.map((item) => ({
+    name: item.name,
+    type: 'bar',
+    barMaxWidth: 24,
+    itemStyle: { color: item.color, borderRadius: [4, 4, 0, 0] },
+    label: {
+      show: true,
+      position: 'top',
+      color: '#71809a',
+      fontSize: 11,
+      formatter: (params) =>
+        params.value == null
+          ? '—'
+          : fmt(Number(params.value), Number.isInteger(Number(params.value)) ? 0 : 2),
     },
-  ],
+    data: categories.value.map((category) => {
+      if (!category.mean) return item.values.get(category.name) ?? null;
+      const values = groups.value
+        .map((row) => item.values.get(row.name))
+        .filter((value): value is number => value !== undefined);
+      return {
+        value: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null,
+        itemStyle: { opacity: 0.25, borderColor: '#667380', borderWidth: 1, borderType: 'dashed' },
+      };
+    }),
+  })),
 }));
 </script>
 <template>

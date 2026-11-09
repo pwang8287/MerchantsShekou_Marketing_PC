@@ -25,3 +25,9 @@ export function channelTree(rows: MarketingPerformanceMetric[]): ChannelTreeNode
     children: [...children.values()],
   }));
 }
+
+export function matchesChannel(channel: string, selection: string): boolean {
+  if (selection === '线上渠道') return channel === '线上获客';
+  if (selection === '线下渠道') return channel !== '线上获客';
+  return channel === selection;
+}
