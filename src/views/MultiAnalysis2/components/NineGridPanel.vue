@@ -106,7 +106,7 @@ function drill(p: GridPoint) {
 }
 function download() {
   exportCsv(
-    props.title + (props.kind === 'channel' ? '_' + (activeChannel.value || '全部渠道') : ''),
+    props.title,
     [
       props.kind === 'advisor' ? '顾问 / 项目' : '对象',
       '分类',
@@ -129,6 +129,10 @@ function download() {
       p.y.toFixed(2),
       p.dealCycle ?? '',
     ]),
+    [
+      ...(props.kind === 'channel' ? [activeChannel.value || '全部渠道'] : []),
+      activeCell.value?.name || '全部分区',
+    ],
   );
 }
 const cellCount = (id: string) => result.value.points.filter((p) => p.cell.id === id).length;

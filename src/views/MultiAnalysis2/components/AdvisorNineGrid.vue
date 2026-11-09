@@ -31,6 +31,7 @@ const props = withDefaults(
     cityColors: () => ({}),
   },
 );
+const emit = defineEmits<{ (event: 'project-select', project: string): void }>();
 const projectMode = computed(() => props.dimension === 'project');
 const entityLabel = computed(() => (projectMode.value ? '项目' : '顾问'));
 const store = useDashboardStore();
@@ -118,7 +119,7 @@ const selectedHistory = computed(() =>
 );
 const shown = computed(() =>
   result.value.points.filter(
-    (point) => !props.selectedProject || point.group === props.selectedProject,
+    (point) => projectMode.value || !props.selectedProject || point.group === props.selectedProject,
   ),
 );
 const replayPoints = computed(() =>
@@ -130,14 +131,17 @@ const filtered = computed(() =>
   ),
 );
 function select(name: string) {
-  if (name === selectedName.value || shown.value.some((point) => point.name === name))
+  const point = shown.value.find((point) => point.name === name);
+  if (name === selectedName.value || point) {
     selectedName.value = selectedName.value === name ? '' : name;
+    if (projectMode.value) emit('project-select', selectedName.value ? point?.group || name : '');
+  }
 }
 watch(
   () => props.selectedProject,
   () => {
     pause();
-    selectedName.value = '';
+    selectedName.value = projectMode.value ? props.selectedProject : '';
   },
 );
 function position(value: number, boundaries: number[]) {

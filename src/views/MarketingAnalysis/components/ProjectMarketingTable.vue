@@ -137,7 +137,7 @@ function conversionClass(rate: number | null) {
 const search = ref('');
 const salesStatus = ref<'全部' | ProjectSalesStatus>('全部');
 const page = ref(1);
-const pageSize = ref(props.advisorList ? 10 : 5);
+const pageSize = ref(10);
 const sort = ref<{ prop: TableKey; order: string | null }>({
   prop: 'amount',
   order: 'descending',
@@ -220,6 +220,7 @@ function download() {
       ...(props.advisorList ? [row.records[0]?.project || ''] : []),
       ...columns.value.map((c) => display(row, c.key)),
     ]),
+    [search.value.trim() || '全部', ...(!advisorMode.value ? [salesStatus.value] : [])],
   );
 }
 </script>

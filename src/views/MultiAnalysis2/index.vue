@@ -272,6 +272,7 @@ watch(activeGroup, () => {
       <AdvisorNineGrid
         :rows="commonRows"
         dimension="project"
+        @project-select="activeProject = $event"
         :filter="analysisFilter"
         :size="size"
         :selected-project="activeProject"

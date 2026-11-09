@@ -77,6 +77,7 @@ function download() {
       p.visits,
       p.dealCycle ?? '',
     ]),
+    [activeStatus.value || '全部', activeCell.value?.name || '全部分区'],
   );
 }
 const missing = computed(() => points.value.length - plottable.value.length);

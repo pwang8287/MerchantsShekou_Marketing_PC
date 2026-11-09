@@ -192,6 +192,7 @@ function exportProjects() {
       ...p.forces.map((f) => fmt(f.score, 1)),
       p.warningCount,
     ]),
+    [search.value.trim() || '全部', status.value || '全部'],
   );
 }
 </script>

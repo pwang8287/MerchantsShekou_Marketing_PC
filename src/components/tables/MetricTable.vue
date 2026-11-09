@@ -33,7 +33,7 @@ const props = withDefaults(
 const store = useDashboardStore();
 const search = ref('');
 const page = ref(1);
-const pageSize = ref(5);
+const pageSize = ref(10);
 const sort = ref<{ prop: string; order: string | null }>({ prop: 'amount', order: 'descending' });
 const filtered = computed(() => {
   const r = props.rows.filter((r) => r.name.includes(search.value));
@@ -54,6 +54,7 @@ function download() {
       ...props.metrics.map((k) => `${metricDefs[k].label}（${metricDefs[k].unit}）`),
     ],
     filtered.value.map((r) => [r.name, ...props.metrics.map((k) => displayMetric(r, k))]),
+    [search.value.trim() || '全部'],
   );
 }
 function totals() {
