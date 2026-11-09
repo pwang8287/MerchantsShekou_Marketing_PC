@@ -2019,3 +2019,26 @@ b {
   color: #435775;
   font-weight: 600;
 }
+
+/* Compact sorting controls for channel composition legend tables. */
+.channel-legend-table.el-table th.el-table__cell .cell {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+.channel-legend-table.el-table .caret-wrapper {
+  width: 8px;
+  height: 14px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.channel-legend-table.el-table .sort-caret {
+  left: 0;
+  border-width: 4px;
+}
+.channel-legend-table.el-table .sort-caret.ascending {
+  top: -2px;
+}
+.channel-legend-table.el-table .sort-caret.descending {
+  bottom: -2px;
+}

@@ -14,6 +14,8 @@ import {
   channelAverageRow,
   isChannelAverage,
 } from '../../../utils/channelAverage';
+import { sortChannelTable, type ChannelTableSort } from '../../../utils/channelTableSort';
+const tableSort = ref<ChannelTableSort>({ prop: '', order: null });
 const store = useDashboardStore();
 const analysisTab = ref<'structure' | 'attribution'>('structure');
 const stageDefinitions = [
@@ -120,7 +122,7 @@ const channels = computed(() =>
     stageCost: row[selected.value.key] ? (row.fee * 10000) / row[selected.value.key] : null,
   })),
 );
-const channelTableRows = computed(() => {
+const unsortedChannelTableRows = computed(() => {
   const average = channelAverageRow(channels.value);
   return average
     ? [
@@ -134,6 +136,14 @@ const channelTableRows = computed(() => {
       ]
     : channels.value;
 });
+const channelTableRows = computed(() =>
+  sortChannelTable(unsortedChannelTableRows.value, tableSort.value, (row, key) => {
+    const column = conversionColumns.value.find((item) => item.label === key);
+    return column
+      ? conversionRate(row, column)
+      : (row[key as keyof typeof row] as string | number | null);
+  }),
+);
 function drillChannel(row: AggregateRow) {
   store.drill(row.name + ' · 渠道客户', row.records, row.name, selected.value.key);
 }
@@ -274,8 +284,9 @@ const structure = computed<EChartsOption>(() => {
               </div>
               <el-table
                 :data="channelTableRows"
+                @sort-change="tableSort = $event"
                 size="small"
-                class="composition-table"
+                class="composition-table channel-legend-table"
                 :class="{ 'contract-composition-table': selected.key === 'contracts' }"
                 :row-class-name="channelRowClass"
                 @cell-mouse-enter="hoverChannel"
@@ -283,6 +294,7 @@ const structure = computed<EChartsOption>(() => {
               >
                 <el-table-column
                   prop="name"
+                  sortable="custom"
                   label="渠道"
                   :min-width="selected.key === 'contracts' ? 76 : 95"
                 >
@@ -296,6 +308,7 @@ const structure = computed<EChartsOption>(() => {
                 <el-table-column
                   :label="selected.name"
                   prop="stageValue"
+                  sortable="custom"
                   :min-width="selected.key === 'contracts' ? 65 : 84"
                   align="right"
                 >
@@ -307,6 +320,7 @@ const structure = computed<EChartsOption>(() => {
                 <el-table-column
                   label="渠道占比"
                   prop="share"
+                  sortable="custom"
                   :min-width="selected.key === 'contracts' ? 58 : 76"
                   align="right"
                 >
@@ -316,6 +330,8 @@ const structure = computed<EChartsOption>(() => {
                 </el-table-column>
                 <el-table-column
                   :label="stageCostLabel"
+                  prop="stageCost"
+                  sortable="custom"
                   :min-width="selected.key === 'contracts' ? 100 : 115"
                   align="right"
                 >
@@ -331,6 +347,8 @@ const structure = computed<EChartsOption>(() => {
                 <el-table-column
                   v-for="column in conversionColumns"
                   :key="column.label"
+                  :prop="column.label"
+                  sortable="custom"
                   :label="column.label"
                   :min-width="selected.key === 'contracts' ? 104 : 125"
                   align="right"

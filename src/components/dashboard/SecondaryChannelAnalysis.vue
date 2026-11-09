@@ -12,6 +12,8 @@ import {
   channelAverageRow,
   isChannelAverage,
 } from '../../utils/channelAverage';
+import { sortChannelTable, type ChannelTableSort } from '../../utils/channelTableSort';
+const tableSort = ref<ChannelTableSort>({ prop: '', order: null });
 const store = useDashboardStore();
 
 const props = defineProps<{
@@ -43,10 +45,22 @@ const groups = computed(() =>
   ),
 );
 const total = computed(() => summarize(groups.value.flatMap((r) => r.records)));
-const tableRows = computed(() => {
+const unsortedTableRows = computed(() => {
   const average = channelAverageRow(groups.value);
   return average ? [...groups.value, average] : groups.value;
 });
+const tableRows = computed(() =>
+  sortChannelTable(unsortedTableRows.value, tableSort.value, (row, key) => {
+    if (key === 'share') return total.value.leads ? row.leads / total.value.leads : null;
+    if (key === 'cost') return row.contracts ? (row.fee * 10000) / row.contracts : null;
+    if (key === 'rate') return row.visitPeople ? row.contracts / row.visitPeople : null;
+    if (key === 'nationalRate') {
+      const national = nationalGroups.value.get(row.name);
+      return national?.visitPeople ? national.contracts / national.visitPeople : null;
+    }
+    return row[key as keyof typeof row] as string | number;
+  }),
+);
 const averageCost = computed(() =>
   averageChannelValue(groups.value, (row) =>
     row.contracts ? (row.fee * 10000) / row.contracts : null,
@@ -126,13 +140,15 @@ const percent = (value: number, denominator: number) =>
       />
       <el-table
         :data="tableRows"
+        class="channel-legend-table"
+        @sort-change="tableSort = $event"
         size="small"
         empty-text="当前渠道暂无数据"
         :row-class-name="rowClassName"
         @cell-mouse-enter="hoverChannel"
         @mouseleave="activeChannel = ''"
       >
-        <el-table-column label="二级渠道" prop="name" min-width="115">
+        <el-table-column label="二级渠道" prop="name" sortable="custom" min-width="115">
           <template #default="{ row }"
             ><button
               v-if="channel === '线下渠道' && !isChannelAverage(row)"
@@ -146,32 +162,62 @@ const percent = (value: number, denominator: number) =>
             ></template
           >
         </el-table-column>
-        <el-table-column label="线索数量" align="right" min-width="70"
+        <el-table-column
+          label="线索数量"
+          prop="leads"
+          sortable="custom"
+          align="right"
+          min-width="70"
           ><template #default="{ row }"
             >{{ fmt(row.leads, isChannelAverage(row) ? 2 : 0) }} 组</template
           ></el-table-column
         >
-        <el-table-column label="线索占比" align="right" min-width="65"
+        <el-table-column
+          label="线索占比"
+          prop="share"
+          sortable="custom"
+          align="right"
+          min-width="65"
           ><template #default="{ row }">{{
             percent(row.leads, total.leads)
           }}</template></el-table-column
         >
-        <el-table-column label="到访人数" align="right" min-width="70"
+        <el-table-column
+          label="到访人数"
+          prop="visitPeople"
+          sortable="custom"
+          align="right"
+          min-width="70"
           ><template #default="{ row }"
             >{{ fmt(row.visitPeople, isChannelAverage(row) ? 2 : 0) }} 人</template
           ></el-table-column
         >
-        <el-table-column label="认购套数" align="right" min-width="70"
+        <el-table-column
+          label="认购套数"
+          prop="subscriptionUnits"
+          sortable="custom"
+          align="right"
+          min-width="70"
           ><template #default="{ row }"
             >{{ fmt(row.subscriptionUnits, isChannelAverage(row) ? 2 : 0) }} 套</template
           ></el-table-column
         >
-        <el-table-column label="签约套数" align="right" min-width="70"
+        <el-table-column
+          label="签约套数"
+          prop="contracts"
+          sortable="custom"
+          align="right"
+          min-width="70"
           ><template #default="{ row }"
             >{{ fmt(row.contracts, isChannelAverage(row) ? 2 : 0) }} 套</template
           ></el-table-column
         >
-        <el-table-column label="单套获客成本(元/套)" align="right" min-width="130"
+        <el-table-column
+          label="单套获客成本(元/套)"
+          prop="cost"
+          sortable="custom"
+          align="right"
+          min-width="130"
           ><template #default="{ row }">{{
             isChannelAverage(row)
               ? averageCost === null
@@ -182,12 +228,24 @@ const percent = (value: number, denominator: number) =>
                 : '—'
           }}</template></el-table-column
         >
-        <el-table-column label="到访至签约转化率" align="right" min-width="115"
+        <el-table-column
+          label="到访至签约转化率"
+          prop="rate"
+          sortable="custom"
+          align="right"
+          min-width="115"
           ><template #default="{ row }">{{
             percent(row.contracts, row.visitPeople)
           }}</template></el-table-column
         >
-        <el-table-column v-if="nationalRows" label="全国转化率" align="right" min-width="100">
+        <el-table-column
+          v-if="nationalRows"
+          label="全国转化率"
+          prop="nationalRate"
+          sortable="custom"
+          align="right"
+          min-width="100"
+        >
           <template #header
             ><el-tooltip
               content="同统计周期、同二级渠道，全国签约套数 ÷ 全国到访人数 × 100%"

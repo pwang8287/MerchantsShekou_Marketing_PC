@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { AggregateRow, MarketingPerformanceMetric } from '../../types';
 import type { EChartsOption } from 'echarts';
 import BaseChart from '../../charts/components/BaseChart.vue';
@@ -8,10 +8,12 @@ import { useDashboardStore } from '../../stores/dashboard';
 import { fmt, groupRows, summarize, filterRows } from '../../utils/metrics';
 
 import { channelAverageRow, isChannelAverage } from '../../utils/channelAverage';
+import { sortChannelTable, type ChannelTableSort } from '../../utils/channelTableSort';
+const tableSort = ref<ChannelTableSort>({ prop: '', order: null });
 const props = defineProps<{ rows: MarketingPerformanceMetric[] }>();
 const store = useDashboardStore();
 const channels = computed(() => groupRows(props.rows, 'channel'));
-const tableRows = computed(() => {
+const unsortedTableRows = computed(() => {
   const average = channelAverageRow(channels.value);
   return average ? [...channels.value, average] : channels.value;
 });
@@ -36,6 +38,18 @@ const projectRate = (name: string) => {
   const row = name === '平均值' ? summarize(projectRows.value) : projectChannels.value.get(name);
   return row ? percent(row.contracts, row.visitPeople) : '—';
 };
+const tableRows = computed(() =>
+  sortChannelTable(unsortedTableRows.value, tableSort.value, (row, key) => {
+    if (key === 'share')
+      return total.value.contracts ? row.contracts / total.value.contracts : null;
+    if (key === 'rate') return row.visitPeople ? row.contracts / row.visitPeople : null;
+    if (key === 'projectRate') {
+      const project = projectChannels.value.get(row.name);
+      return project?.visitPeople ? project.contracts / project.visitPeople : null;
+    }
+    return row[key as keyof typeof row] as string | number;
+  }),
+);
 const option = computed<EChartsOption>(() => ({
   tooltip: {
     trigger: 'item',
@@ -102,12 +116,14 @@ function totals() {
       <BaseChart :option="option" :height="280" :empty="!total.contracts" unit="套" />
       <el-table
         :data="tableRows"
+        class="channel-legend-table"
+        @sort-change="tableSort = $event"
         :row-class-name="channelRowClass"
         show-summary
         :summary-method="totals"
         size="small"
       >
-        <el-table-column prop="name" label="渠道" min-width="90">
+        <el-table-column prop="name" sortable="custom" label="渠道" min-width="90">
           <template #default="{ row }"
             ><span class="channel-name"
               ><i v-if="!isChannelAverage(row)" :style="{ background: bubbleColor(row.name) }" />{{
@@ -123,6 +139,8 @@ function totals() {
             { key: 'contracts', label: '签约套数', unit: '套' },
           ] as const"
           :key="column.key"
+          :prop="column.key"
+          sortable="custom"
           :label="column.label"
           align="right"
           min-width="74"
@@ -131,19 +149,33 @@ function totals() {
             >{{ fmt(row[column.key], isChannelAverage(row) ? 2 : 0) }} {{ column.unit }}</template
           >
         </el-table-column>
-        <el-table-column label="签约占比" align="right" min-width="70">
+        <el-table-column
+          label="签约占比"
+          prop="share"
+          sortable="custom"
+          align="right"
+          min-width="70"
+        >
           <template #default="{ row }">{{ percent(row.contracts, total.contracts) }}</template>
         </el-table-column>
         <el-table-column
           v-for="column in rateColumns"
           :key="column.label"
+          prop="rate"
+          sortable="custom"
           :label="column.label"
           align="right"
           min-width="112"
         >
           <template #default="{ row }">{{ percentage(row, column) }}</template>
         </el-table-column>
-        <el-table-column label="项目到访至签约转化率" align="right" min-width="138">
+        <el-table-column
+          label="项目到访至签约转化率"
+          prop="projectRate"
+          sortable="custom"
+          align="right"
+          min-width="138"
+        >
           <template #header
             ><el-tooltip
               content="同统计周期、同渠道的项目签约套数 ÷ 到访人数 × 100%"
