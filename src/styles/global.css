@@ -2012,3 +2012,10 @@ b {
 .nine-grid-actions {
   flex-wrap: wrap;
 }
+
+/* Channel averages are a reference row, never a selectable legend item. */
+.el-table .channel-average-row > td.el-table__cell {
+  background: #f3f7ff;
+  color: #435775;
+  font-weight: 600;
+}

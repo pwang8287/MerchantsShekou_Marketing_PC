@@ -9,6 +9,11 @@ import { bubbleColor } from '../../../charts/themes/bubbles';
 import { donutOption } from '../../../charts/options';
 import { groupRows, fmt, divide, filterRows, summarize } from '../../../utils/metrics';
 import type { AggregateRow } from '../../../types';
+import {
+  averageChannelValue,
+  channelAverageRow,
+  isChannelAverage,
+} from '../../../utils/channelAverage';
 const store = useDashboardStore();
 const analysisTab = ref<'structure' | 'attribution'>('structure');
 const stageDefinitions = [
@@ -115,14 +120,32 @@ const channels = computed(() =>
     stageCost: row[selected.value.key] ? (row.fee * 10000) / row[selected.value.key] : null,
   })),
 );
+const channelTableRows = computed(() => {
+  const average = channelAverageRow(channels.value);
+  return average
+    ? [
+        ...channels.value,
+        {
+          ...average,
+          stageValue: total.value / channels.value.length,
+          share: total.value ? 100 / channels.value.length : null,
+          stageCost: averageChannelValue(channels.value, (row) => row.stageCost),
+        },
+      ]
+    : channels.value;
+});
 function drillChannel(row: AggregateRow) {
   store.drill(row.name + ' · 渠道客户', row.records, row.name, selected.value.key);
 }
 function channelRowClass({ row }: { row: AggregateRow }) {
-  return row.name === activeChannel.value ? 'channel-hovered' : '';
+  return isChannelAverage(row)
+    ? 'channel-average-row'
+    : row.name === activeChannel.value
+      ? 'channel-hovered'
+      : '';
 }
 function hoverChannel(row: AggregateRow) {
-  activeChannel.value = row.name;
+  activeChannel.value = isChannelAverage(row) ? '' : row.name;
 }
 const structure = computed<EChartsOption>(() => {
   const option = donutOption(
@@ -250,7 +273,7 @@ const structure = computed<EChartsOption>(() => {
                 />
               </div>
               <el-table
-                :data="channels"
+                :data="channelTableRows"
                 size="small"
                 class="composition-table"
                 :class="{ 'contract-composition-table': selected.key === 'contracts' }"
@@ -264,7 +287,8 @@ const structure = computed<EChartsOption>(() => {
                   :min-width="selected.key === 'contracts' ? 76 : 95"
                 >
                   <template #default="{ row }"
-                    ><button class="channel-drill" @click="drillChannel(row)">
+                    ><span v-if="isChannelAverage(row)">平均值</span
+                    ><button v-else class="channel-drill" @click="drillChannel(row)">
                       <i :style="{ background: bubbleColor(row.name) }" />{{ row.name }}
                     </button></template
                   >
@@ -276,7 +300,8 @@ const structure = computed<EChartsOption>(() => {
                   align="right"
                 >
                   <template #default="{ row }"
-                    >{{ fmt(row.stageValue) }} {{ selected.unit }}</template
+                    >{{ fmt(row.stageValue, isChannelAverage(row) ? 2 : 0) }}
+                    {{ selected.unit }}</template
                   >
                 </el-table-column>
                 <el-table-column

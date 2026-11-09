@@ -1,5 +1,5 @@
 import { fmt } from './metrics';
-export type ComparisonUnit = '%' | 'pct';
+export type ComparisonUnit = '%' | 'pct' | 'number';
 export type ComparisonTone = 'rise' | 'fall' | 'neutral';
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
@@ -16,11 +16,16 @@ export function comparisonChange(
 export function comparisonState(value: number | null | undefined, unit: ComparisonUnit = '%') {
   if (!isNumber(value)) return { tone: 'neutral' as ComparisonTone, text: '-', missing: true };
   const tone: ComparisonTone = value > 0 ? 'rise' : value < 0 ? 'fall' : 'neutral';
-  const suffix = unit === 'pct' ? ' pct' : '%';
-  if (value === 0) return { tone, text: `0.00${suffix}`, missing: false };
+  const suffix = unit === 'number' ? '' : unit === 'pct' ? ' pct' : '%';
+  if (value === 0)
+    return { tone, text: `${unit === 'number' ? '0' : '0.00'}${suffix}`, missing: false };
   // 保留原始方向；小于最小展示精度的非零值不能显示成零。
   const magnitude =
-    Math.abs(value) < 0.01 ? (value > 0 ? '>0.01' : '<0.01') : fmt(Math.abs(value), 2);
+    Math.abs(value) < 0.01
+      ? value > 0
+        ? '>0.01'
+        : '<0.01'
+      : fmt(Math.abs(value), unit === 'number' ? 0 : 2);
   return {
     tone,
     text: `${value > 0 ? '+' : '-'}${magnitude}${suffix} ${value > 0 ? '▲' : '▼'}`,

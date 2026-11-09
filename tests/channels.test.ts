@@ -112,7 +112,10 @@ for (const category of channelCatalog) {
   const series = option.series.find((s) => s.name === category.name);
   assert.equal(series.itemStyle.color, channelColors[category.name]);
 }
-assert.equal(objects.total, 27);
+assert.equal(
+  objects.total,
+  channelCatalog.reduce((count, c) => count + c.objects.length, 0),
+);
 assert.equal(filterGridByChannel(objects, ''), objects);
 assert.equal(filterGridByChannel(objects, '不存在的渠道').total, 0);
 const noBaseline = buildNineGrid(
@@ -125,8 +128,11 @@ const noBaseline = buildNineGrid(
 );
 const noBaselineOnline = filterGridByChannel(noBaseline, '线上获客');
 assert.equal(noBaselineOnline.points.length, 0);
-assert.equal(noBaselineOnline.excluded.length, 5);
-assert.equal(noBaselineOnline.total, 5);
+assert.equal(
+  noBaselineOnline.excluded.length,
+  channelCatalog.find((c) => c.name === '线上获客')!.objects.length,
+);
+assert.equal(noBaselineOnline.total, channelCatalog.find((c) => c.name === '线上获客')!.objects.length);
 assert.equal(bubbleColor('线上获客'), channelColors['线上获客']);
 assert.equal(bubbleColor('新增渠道'), bubbleColor('新增渠道'));
 console.log('通过：图例筛选、二级对象数量、不可比对象同步、返回全部和固定分类颜色。');

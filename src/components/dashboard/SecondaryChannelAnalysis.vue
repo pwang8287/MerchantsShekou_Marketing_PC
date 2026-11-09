@@ -7,6 +7,11 @@ import { bubblePalette } from '../../charts/themes/bubbles';
 import { groupRows, fmt, summarize } from '../../utils/metrics';
 import { matchesChannel } from '../../utils/channels';
 import { useDashboardStore } from '../../stores/dashboard';
+import {
+  averageChannelValue,
+  channelAverageRow,
+  isChannelAverage,
+} from '../../utils/channelAverage';
 const store = useDashboardStore();
 
 const props = defineProps<{
@@ -25,7 +30,10 @@ const nationalGroups = computed(
     ),
 );
 function nationalRate(name: string) {
-  const row = nationalGroups.value.get(name);
+  const row =
+    name === '平均值'
+      ? summarize([...nationalGroups.value.values()].flatMap((group) => group.records))
+      : nationalGroups.value.get(name);
   return row ? percent(row.contracts, row.visitPeople) : '—';
 }
 const groups = computed(() =>
@@ -35,6 +43,15 @@ const groups = computed(() =>
   ),
 );
 const total = computed(() => summarize(groups.value.flatMap((r) => r.records)));
+const tableRows = computed(() => {
+  const average = channelAverageRow(groups.value);
+  return average ? [...groups.value, average] : groups.value;
+});
+const averageCost = computed(() =>
+  averageChannelValue(groups.value, (row) =>
+    row.contracts ? (row.fee * 10000) / row.contracts : null,
+  ),
+);
 const color = (name: string) =>
   bubblePalette[
     Math.max(
@@ -50,10 +67,14 @@ watch(
   },
 );
 function hoverChannel(row: { name: string }) {
-  activeChannel.value = row.name;
+  activeChannel.value = isChannelAverage(row) ? '' : row.name;
 }
 function rowClassName({ row }: { row: { name: string } }) {
-  return row.name === activeChannel.value ? 'channel-hovered' : '';
+  return isChannelAverage(row)
+    ? 'channel-average-row'
+    : row.name === activeChannel.value
+      ? 'channel-hovered'
+      : '';
 }
 const option = computed(() => {
   const result = donutOption(groups.value, { showLegend: false, colorForName: color });
@@ -104,7 +125,7 @@ const percent = (value: number, denominator: number) =>
         @leave="activeChannel = ''"
       />
       <el-table
-        :data="groups"
+        :data="tableRows"
         size="small"
         empty-text="当前渠道暂无数据"
         :row-class-name="rowClassName"
@@ -114,18 +135,21 @@ const percent = (value: number, denominator: number) =>
         <el-table-column label="二级渠道" prop="name" min-width="115">
           <template #default="{ row }"
             ><button
-              v-if="channel === '线下渠道'"
+              v-if="channel === '线下渠道' && !isChannelAverage(row)"
               class="secondary-channel-name secondary-channel-link"
               @click="store.drill(row.name, row.records, row.name, 'visitPeople')"
             >
               <i :style="{ background: color(row.name) }"></i>{{ row.name }}</button
             ><span v-else class="secondary-channel-name"
-              ><i :style="{ background: color(row.name) }"></i>{{ row.name }}</span
+              ><i v-if="!isChannelAverage(row)" :style="{ background: color(row.name) }"></i
+              >{{ row.name }}</span
             ></template
           >
         </el-table-column>
         <el-table-column label="线索数量" align="right" min-width="70"
-          ><template #default="{ row }">{{ fmt(row.leads) }} 组</template></el-table-column
+          ><template #default="{ row }"
+            >{{ fmt(row.leads, isChannelAverage(row) ? 2 : 0) }} 组</template
+          ></el-table-column
         >
         <el-table-column label="线索占比" align="right" min-width="65"
           ><template #default="{ row }">{{
@@ -133,19 +157,29 @@ const percent = (value: number, denominator: number) =>
           }}</template></el-table-column
         >
         <el-table-column label="到访人数" align="right" min-width="70"
-          ><template #default="{ row }">{{ fmt(row.visitPeople) }} 人</template></el-table-column
+          ><template #default="{ row }"
+            >{{ fmt(row.visitPeople, isChannelAverage(row) ? 2 : 0) }} 人</template
+          ></el-table-column
         >
         <el-table-column label="认购套数" align="right" min-width="70"
           ><template #default="{ row }"
-            >{{ fmt(row.subscriptionUnits) }} 套</template
+            >{{ fmt(row.subscriptionUnits, isChannelAverage(row) ? 2 : 0) }} 套</template
           ></el-table-column
         >
         <el-table-column label="签约套数" align="right" min-width="70"
-          ><template #default="{ row }">{{ fmt(row.contracts) }} 套</template></el-table-column
+          ><template #default="{ row }"
+            >{{ fmt(row.contracts, isChannelAverage(row) ? 2 : 0) }} 套</template
+          ></el-table-column
         >
         <el-table-column label="单套获客成本(元/套)" align="right" min-width="130"
           ><template #default="{ row }">{{
-            row.contracts ? fmt((row.fee * 10000) / row.contracts, 2) : '—'
+            isChannelAverage(row)
+              ? averageCost === null
+                ? '—'
+                : fmt(averageCost, 2)
+              : row.contracts
+                ? fmt((row.fee * 10000) / row.contracts, 2)
+                : '—'
           }}</template></el-table-column
         >
         <el-table-column label="到访至签约转化率" align="right" min-width="115"

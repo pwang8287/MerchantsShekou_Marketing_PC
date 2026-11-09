@@ -55,6 +55,7 @@ export const channelCatalog: ChannelCategory[] = [
       object('online-wechat', '微信', ['视频号', '朋友圈', '公众号', '小程序']),
       object('online-kuaishou', '快手', ['房产直播', '短视频咨询']),
       object('online-anjuke', '安居客', ['楼盘详情留资', '在线咨询']),
+      object('online-other', '其他', ['其他线上平台留资']),
     ],
   },
   {

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { ArrowRight } from '@element-plus/icons-vue';
 import type { EChartsOption } from 'echarts';
+import ComparisonBadge from '../../../components/common/ComparisonBadge.vue';
 import BaseChart from '../../../charts/components/BaseChart.vue';
 import OrganizationContributionDrawer from '../../../components/dashboard/OrganizationContributionDrawer.vue';
 import { useDashboardStore } from '../../../stores/dashboard';
@@ -158,15 +159,12 @@ const option = computed<EChartsOption>(() => {
         ><strong>{{ fmt(analysis.previous) }}</strong>
       </div>
       <div>
-        <span>{{ comparisonLabel }}增长数量</span><strong>{{ signed(analysis.delta) }}</strong>
+        <span>{{ comparisonLabel }}增长数量</span
+        ><strong><ComparisonBadge :value="analysis.delta" unit="number" /></strong>
       </div>
       <div>
         <span>{{ comparisonLabel }}增长率</span
-        ><strong>{{
-          analysis.rate === null
-            ? '—'
-            : (analysis.rate > 0 ? '+' : '') + fmt(analysis.rate, 2) + '%'
-        }}</strong>
+        ><strong><ComparisonBadge :value="analysis.rate" /></strong>
       </div>
     </div>
     <div
@@ -258,7 +256,7 @@ const option = computed<EChartsOption>(() => {
   padding: 12px 8px;
   min-width: 0;
 }
-.attribution-cards span {
+.attribution-cards > div > span {
   display: block;
   color: #8090a7;
   font-size: 10px;
@@ -270,6 +268,11 @@ const option = computed<EChartsOption>(() => {
   color: #26394f;
   font-size: 20px;
   margin-top: 10px;
+}
+.attribution-cards strong :deep(.comparison-badge) {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 26px;
 }
 .attribution-dimensions {
   display: flex;

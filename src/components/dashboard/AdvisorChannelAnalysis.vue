@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { MarketingPerformanceMetric } from '../../types';
+import type { AggregateRow, MarketingPerformanceMetric } from '../../types';
 import type { EChartsOption } from 'echarts';
 import BaseChart from '../../charts/components/BaseChart.vue';
 import { bubbleColor } from '../../charts/themes/bubbles';
 import { useDashboardStore } from '../../stores/dashboard';
 import { fmt, groupRows, summarize, filterRows } from '../../utils/metrics';
 
+import { channelAverageRow, isChannelAverage } from '../../utils/channelAverage';
 const props = defineProps<{ rows: MarketingPerformanceMetric[] }>();
 const store = useDashboardStore();
 const channels = computed(() => groupRows(props.rows, 'channel'));
+const tableRows = computed(() => {
+  const average = channelAverageRow(channels.value);
+  return average ? [...channels.value, average] : channels.value;
+});
 const total = computed(() => summarize(props.rows));
 const projectRows = computed(() => {
   const projects = new Set(props.rows.map((row) => row.project));
@@ -28,7 +33,7 @@ const projectChannels = computed(
 const percent = (contracts: number, visits: number) =>
   visits ? fmt((contracts / visits) * 100, 1) + '%' : '—';
 const projectRate = (name: string) => {
-  const row = projectChannels.value.get(name);
+  const row = name === '平均值' ? summarize(projectRows.value) : projectChannels.value.get(name);
   return row ? percent(row.contracts, row.visitPeople) : '—';
 };
 const option = computed<EChartsOption>(() => ({
@@ -74,6 +79,9 @@ function percentage(row: typeof total.value, column: RateColumn) {
     ? fmt((row[column.numerator] / row[column.denominator]) * 100, 1) + '%'
     : '—';
 }
+function channelRowClass({ row }: { row: AggregateRow }) {
+  return isChannelAverage(row) ? 'channel-average-row' : '';
+}
 function totals() {
   return [
     '合计',
@@ -92,11 +100,19 @@ function totals() {
     <header class="panel-head"><h3>渠道转化分析</h3></header>
     <div class="channel-analysis-body">
       <BaseChart :option="option" :height="280" :empty="!total.contracts" unit="套" />
-      <el-table :data="channels" show-summary :summary-method="totals" size="small">
+      <el-table
+        :data="tableRows"
+        :row-class-name="channelRowClass"
+        show-summary
+        :summary-method="totals"
+        size="small"
+      >
         <el-table-column prop="name" label="渠道" min-width="90">
           <template #default="{ row }"
             ><span class="channel-name"
-              ><i :style="{ background: bubbleColor(row.name) }" />{{ row.name }}</span
+              ><i v-if="!isChannelAverage(row)" :style="{ background: bubbleColor(row.name) }" />{{
+                row.name
+              }}</span
             ></template
           >
         </el-table-column>
@@ -111,7 +127,9 @@ function totals() {
           align="right"
           min-width="74"
         >
-          <template #default="{ row }">{{ fmt(row[column.key]) }} {{ column.unit }}</template>
+          <template #default="{ row }"
+            >{{ fmt(row[column.key], isChannelAverage(row) ? 2 : 0) }} {{ column.unit }}</template
+          >
         </el-table-column>
         <el-table-column label="签约占比" align="right" min-width="70">
           <template #default="{ row }">{{ percent(row.contracts, total.contracts) }}</template>

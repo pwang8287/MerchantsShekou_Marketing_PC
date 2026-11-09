@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { comparisonChange, comparisonState, comparisonHtml } from '../src/utils/comparison';
+assert.equal(comparisonState(267, 'number').text, '+267 ▲');
+assert.equal(comparisonState(-267, 'number').text, '-267 ▼');
+assert.equal(comparisonState(0, 'number').text, '0');
 assert.equal(comparisonState(8).tone, 'rise');
 assert.equal(comparisonState(8).text, '+8.00% ▲');
 assert.equal(comparisonState(-8).tone, 'fall');
