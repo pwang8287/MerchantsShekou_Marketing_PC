@@ -240,6 +240,7 @@ function download() {
       </div>
       <div class="table-tools">
         <el-input
+          class="app-search-input"
           v-model="search"
           :prefix-icon="Search"
           clearable

@@ -95,7 +95,19 @@ const popperOptions = {
         :aria-label="`${mode === 'yesterday' ? '昨日' : statisticsPeriodPrefix(store.filter.periodType)}${metric.label}趋势`"
         @click="open"
       >
-        <span class="kpi-trend-arrow">↗</span>
+        <svg
+          class="kpi-trend-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+          <path d="M7 16c1.3-5.6 2.6-8.6 4.5-7.5 1.6.9 2.1 4 4 3.1 1.8-.9 3.1-3.7 4.5-7.6" />
+        </svg>
       </button></template
     >
     <div :data-kpi-trend-owner="owner">
@@ -132,8 +144,11 @@ const popperOptions = {
   opacity: 0.4;
   cursor: default;
 }
-.kpi-trend-arrow {
-  margin: 0;
+.kpi-trend-icon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
   color: var(--kpi-accent);
 }
 </style>

@@ -16,7 +16,7 @@ const stageDefinitions = [
   { key: 'subscriptionUnits', name: '认购套数', unit: '套', color: '#508bf0' },
   { key: 'contracts', name: '签约套数', unit: '套', color: '#2873ed' },
 ] as const;
-const selectedIndex = ref<number | null>(1);
+const selectedIndex = ref<number | null>(null);
 const displayedIndex = ref(1);
 function toggleStage(index: number) {
   selectedIndex.value = selectedIndex.value === index ? null : index;
@@ -197,7 +197,12 @@ const structure = computed<EChartsOption>(() => {
 </script>
 <template>
   <section class="panel conversion-composition">
-    <header class="panel-head"><h3>客户转化与渠道构成分析</h3></header>
+    <header class="panel-head">
+      <div>
+        <h3>客户转化与渠道构成分析</h3>
+        <p>点击环节可查看具体环节渠道构成及归因分析</p>
+      </div>
+    </header>
     <div class="conversion-layout">
       <div class="conversion-funnel">
         <h4>客户转化漏斗</h4>
@@ -209,6 +214,34 @@ const structure = computed<EChartsOption>(() => {
         </div>
         <div class="funnel-stage-list" :class="{ 'has-selection': selectedIndex !== null }">
           <div v-for="(stage, index) in stages" :key="stage.key" class="funnel-stage-row">
+            <svg
+              v-if="index"
+              class="stage-flow-arrow"
+              viewBox="0 0 100 84"
+              preserveAspectRatio="none"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                :d="`M ${101.6 - index * 6.6} 0 H ${107.5 - index * 6.6} Q ${109 - index * 6.6} 0 ${109 - index * 6.6} 4 V 80 Q ${109 - index * 6.6} 84 ${107.5 - index * 6.6} 84 H ${95 - index * 6.6}`"
+                stroke-dasharray="4 4"
+                vector-effect="non-scaling-stroke"
+              />
+              <path
+                :d="`M ${98 - index * 6.6} 80 L ${95 - index * 6.6} 84 L ${98 - index * 6.6} 88`"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
+            <i
+              v-if="index"
+              class="stage-rate-connector"
+              :style="{ left: `calc((100% - 120px) * ${1.09 - index * 0.066})` }"
+              aria-hidden="true"
+            />
             <button
               class="funnel-stage"
               :class="{ selected: selectedIndex === index }"
@@ -359,7 +392,7 @@ const structure = computed<EChartsOption>(() => {
   margin-bottom: 16px;
 }
 .conversion-composition > .panel-head {
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 .conversion-layout {
   display: grid;
@@ -447,19 +480,51 @@ h4 {
 .stage-conversion {
   position: absolute;
   right: 0;
-  top: 10px;
-  width: 112px;
+  top: -36px;
+  width: 100px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   text-align: center;
+}
+.stage-flow-arrow {
+  position: absolute;
+  left: 0;
+  top: -48px;
+  width: calc(100% - 120px);
+  height: 84px;
+  overflow: visible;
+  color: #8fb6ef;
+  pointer-events: none;
+}
+.stage-rate-connector {
+  position: absolute;
+  top: -6px;
+  right: 104px;
+  height: 1.5px;
+  background: repeating-linear-gradient(to right, #8fb6ef 0 4px, transparent 4px 8px);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.stage-rate-connector::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -1.25px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #8fb6ef;
 }
 .stage-conversion span {
   font-size: 10px;
-  color: #8794a8;
+  line-height: 14px;
+  color: #7b8da8;
 }
 .stage-conversion strong {
   font-size: 19px;
+  line-height: 24px;
+  font-weight: 600;
   color: #2873ed;
 }
 .composition-panel {

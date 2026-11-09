@@ -290,6 +290,7 @@ watch(activeGroup, () => {
     <aside class="shared-project-sidebar panel">
       <div class="shared-project-search">
         <el-input
+          class="app-search-input"
           v-model="search"
           clearable
           placeholder="请输入项目名称搜索"

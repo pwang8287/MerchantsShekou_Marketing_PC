@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { Sort } from '@element-plus/icons-vue';
 import type { EChartsOption } from 'echarts';
 import BaseChart from '../../../charts/components/BaseChart.vue';
 import { useDashboardStore } from '../../../stores/dashboard';
@@ -92,8 +93,8 @@ const option = computed<EChartsOption>(() => ({
     confine: true,
     axisPointer: { type: 'shadow' },
   },
-  legend: { bottom: 0, type: 'scroll', textStyle: { color: '#667380', fontSize: 11 } },
-  grid: { top: 40, left: 20, right: 24, bottom: 88, containLabel: true },
+  legend: { bottom: 6, type: 'scroll', textStyle: { color: '#667380', fontSize: 11 } },
+  grid: { top: 26, left: 20, right: 24, bottom: 38, containLabel: true },
   xAxis: {
     type: 'category',
     data: plotRows.value.map((row) => row.name),
@@ -173,23 +174,27 @@ const option = computed<EChartsOption>(() => ({
     <header class="panel-head">
       <div>
         <h3>营销转化对比分析</h3>
-        <p>按当前统计周期对比各组织的线索、到访、认购、签约数量及环节转化率</p>
       </div>
     </header>
     <div class="comparison-toolbar">
       <div class="sort-controls">
         <span>排序字段</span>
-        <div class="comparison-switch" role="group" aria-label="排序字段">
-          <button
+        <el-select
+          v-model="sortKey"
+          class="comparison-sort-select"
+          popper-class="comparison-sort-menu"
+          aria-label="排序字段"
+        >
+          <template #prefix
+            ><el-icon><Sort /></el-icon
+          ></template>
+          <el-option
             v-for="metric in metrics"
             :key="metric.key"
-            :class="{ active: sortKey === metric.key }"
-            :aria-pressed="sortKey === metric.key"
-            @click="sortKey = metric.key"
-          >
-            {{ metric.label }}
-          </button>
-        </div>
+            :label="metric.label"
+            :value="metric.key"
+          />
+        </el-select>
       </div>
       <div
         v-if="dimensions.length > 1"
@@ -208,27 +213,35 @@ const option = computed<EChartsOption>(() => ({
         </button>
       </div>
     </div>
-    <BaseChart :option="option" :height="400" :empty="!groups.length" :loading="store.loading" />
+    <BaseChart :option="option" :height="240" :empty="!groups.length" :loading="store.loading" />
   </section>
 </template>
 <style scoped>
 .conversion-comparison-panel {
-  padding: 16px;
+  height: 354px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
   margin-bottom: 16px;
   min-width: 0;
 }
-.panel-head p {
-  margin: 7px 0 0;
-  font-size: 12px;
-  color: #8996ab;
+.conversion-comparison-panel > .panel-head {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.conversion-comparison-panel > .chart-root {
+  flex: 1;
+  min-height: 0;
 }
 .comparison-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
-  margin: 16px 0 12px;
+  margin: 8px 0;
+  flex-shrink: 0;
 }
 .sort-controls {
   display: flex;
@@ -240,6 +253,46 @@ const option = computed<EChartsOption>(() => ({
   flex-shrink: 0;
   color: #8090a7;
   font-size: 12px;
+}
+.comparison-sort-select {
+  width: 180px;
+  height: 26px;
+  --el-component-size: 26px;
+}
+.comparison-sort-select :deep(.el-select__wrapper) {
+  height: 26px;
+  min-height: 26px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #d6e1f2 inset;
+  font-size: 12px;
+  font-weight: 400;
+}
+.comparison-sort-select :deep(.el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px #b8c9e1 inset;
+}
+.comparison-sort-select :deep(.el-select__wrapper.is-focused) {
+  box-shadow:
+    0 0 0 1px #168bff inset,
+    0 0 0 2px rgb(22 139 255 / 20%);
+}
+.comparison-sort-select :deep(.el-select__selected-item) {
+  color: #667380;
+}
+.comparison-sort-select :deep(.el-select__prefix),
+.comparison-sort-select :deep(.el-select__caret) {
+  color: #a2a8b2;
+}
+.comparison-sort-select :deep(.el-select__prefix) {
+  font-size: 13.5px;
+  margin-right: 8px;
+}
+.comparison-sort-select :deep(.el-icon) {
+  width: 13.5px;
+  height: 13.5px;
+  font-size: 13.5px;
 }
 .comparison-switch {
   display: inline-flex;
@@ -264,6 +317,29 @@ const option = computed<EChartsOption>(() => ({
   background: #fff;
   color: #26394f;
   box-shadow: 0 1px 4px #00000010;
+  font-weight: 600;
+}
+</style>
+<style>
+.el-popper.comparison-sort-menu {
+  border: 1px solid #dfe6f2;
+  border-radius: 8px;
+  box-shadow: 0 14px 36px #233b651a;
+  overflow: hidden;
+}
+.comparison-sort-menu .el-select-dropdown__item {
+  height: 46px;
+  line-height: 46px;
+  padding: 0 20px;
+  color: #4a5e7a;
+  font-size: 14px;
+}
+.comparison-sort-menu .el-select-dropdown__item.is-hovering {
+  background: #f7faff;
+}
+.comparison-sort-menu .el-select-dropdown__item.is-selected {
+  background: #f0f5ff;
+  color: #4879d1;
   font-weight: 600;
 }
 </style>

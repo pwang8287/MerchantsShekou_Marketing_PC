@@ -76,6 +76,7 @@ const selectRow = (r: AggregateRow) => store.drill(r.name + ' · 营销明细', 
       </div>
       <div class="table-tools">
         <el-input
+          class="app-search-input"
           v-model="search"
           :prefix-icon="Search"
           clearable

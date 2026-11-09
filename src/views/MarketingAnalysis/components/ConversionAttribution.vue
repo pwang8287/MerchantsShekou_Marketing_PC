@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
+import { ArrowRight } from '@element-plus/icons-vue';
 import type { EChartsOption } from 'echarts';
 import BaseChart from '../../../charts/components/BaseChart.vue';
 import OrganizationContributionDrawer from '../../../components/dashboard/OrganizationContributionDrawer.vue';
@@ -13,6 +15,8 @@ import {
 import { fmt } from '../../../utils/metrics';
 const props = defineProps<{ stage: { key: ConversionStageKey; name: string; unit: string } }>();
 const store = useDashboardStore();
+const route = useRoute();
+const isProjectDetail = computed(() => route.name === 'project-marketing-detail');
 const dimension = ref<AttributionDimension>('channel');
 const detailVisible = ref(false);
 const comparisonMode = ref<AttributionComparison>('mom');
@@ -28,7 +32,7 @@ const analysis = computed(() =>
     store.rows,
     store.filter,
     props.stage.key,
-    dimension.value,
+    isProjectDetail.value ? 'channel' : dimension.value,
     comparisonMode.value,
   ),
 );
@@ -52,7 +56,7 @@ const option = computed<EChartsOption>(() => {
     { name: data.currentLabel, value: data.current, base: 0, delta: null },
   ];
   return {
-    grid: { left: 56, right: 15, top: 32, bottom: 80 },
+    grid: { left: 12, right: 16, top: 32, bottom: 16, containLabel: true },
     tooltip: {
       trigger: 'item',
       confine: true,
@@ -70,19 +74,20 @@ const option = computed<EChartsOption>(() => {
       data: entries.map((item) => item.name),
       axisTick: { show: false },
       axisLabel: {
-        rotate: 35,
-        fontSize: 10,
-        color: '#71809a',
+        rotate: 25,
+        fontSize: 11,
+        color: '#7385a2',
         width: 85,
         overflow: 'truncate',
         interval: 0,
       },
-      axisLine: { lineStyle: { color: '#ccd5e2' } },
+      axisLine: { lineStyle: { color: '#d8e2f0' } },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { fontSize: 10, color: '#71809a' },
-      splitLine: { lineStyle: { color: '#edf1f7' } },
+      minInterval: 1,
+      axisLabel: { fontSize: 11, color: '#7385a2' },
+      splitLine: { lineStyle: { color: '#e6edf6', type: 'dashed' } },
     },
     series: [
       {
@@ -97,11 +102,11 @@ const option = computed<EChartsOption>(() => {
       {
         type: 'bar',
         stack: 'changes',
-        barMaxWidth: 32,
+        barMaxWidth: 28,
         label: {
           show: true,
           position: 'top',
-          fontSize: 10,
+          fontSize: 11,
           color: '#43546e',
           formatter: (params) => {
             const entry = entries[params.dataIndex];
@@ -112,6 +117,7 @@ const option = computed<EChartsOption>(() => {
           value: item.value,
           itemStyle: {
             color: item.delta === null ? '#2873ed' : item.delta >= 0 ? '#f45b69' : '#0aa582',
+            borderRadius: item.delta === null ? [4, 4, 0, 0] : [2, 2, 2, 2],
           },
         })),
       },
@@ -138,7 +144,9 @@ const option = computed<EChartsOption>(() => {
           环比
         </button>
       </div>
-      <button class="attribution-detail-link" @click="detailVisible = true">查看明细</button>
+      <button v-if="!isProjectDetail" class="attribution-detail-link" @click="detailVisible = true">
+        查看更多<el-icon><ArrowRight /></el-icon>
+      </button>
     </div>
     <div class="attribution-cards">
       <div>
@@ -161,7 +169,12 @@ const option = computed<EChartsOption>(() => {
         }}</strong>
       </div>
     </div>
-    <div class="attribution-dimensions" role="tablist" aria-label="归因维度">
+    <div
+      v-if="!isProjectDetail"
+      class="attribution-dimensions"
+      role="tablist"
+      aria-label="归因维度"
+    >
       <button
         v-for="item in dimensions"
         :key="item.key"
@@ -180,7 +193,11 @@ const option = computed<EChartsOption>(() => {
       :empty="!analysis.items.length"
       :unit="stage.unit"
     />
-    <OrganizationContributionDrawer v-model="detailVisible" :stage="stage" />
+    <OrganizationContributionDrawer
+      v-if="!isProjectDetail"
+      v-model="detailVisible"
+      :stage="stage"
+    />
   </div>
 </template>
 <style scoped>
@@ -191,10 +208,13 @@ const option = computed<EChartsOption>(() => {
   gap: 12px;
 }
 .attribution-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 0;
   padding: 0;
   background: transparent;
-  color: #4285f4;
+  color: #168bff;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -234,6 +254,7 @@ const option = computed<EChartsOption>(() => {
 .attribution-cards > div {
   background: #f5f7fb;
   border: 1px solid #e0e7f2;
+  border-radius: 6px;
   padding: 12px 8px;
   min-width: 0;
 }

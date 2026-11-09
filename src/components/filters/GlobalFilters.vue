@@ -105,7 +105,7 @@ const quarter = computed({
 watch(
   () => isHomePage.value || isMultiAnalysis.value,
   (visible) => {
-    if (visible && draft.periodType === 'quarter') changeType('month');
+    if (visible && ['quarter', 'custom'].includes(draft.periodType || '')) changeType('month');
   },
   { immediate: true },
 );
@@ -144,6 +144,7 @@ function reset() {
       >
         <template #header>
           <el-input
+            class="app-search-input"
             ref="projectSearchInput"
             v-model="projectSearch"
             placeholder="搜索项目名称"
@@ -173,7 +174,9 @@ function reset() {
             ><el-radio-button v-if="!isHomePage && !isMultiAnalysis" value="quarter"
               >季</el-radio-button
             ><el-radio-button value="year">年</el-radio-button
-            ><el-radio-button value="custom">自定义</el-radio-button>
+            ><el-radio-button v-if="!isHomePage && !isMultiAnalysis" value="custom"
+              >自定义</el-radio-button
+            >
           </el-radio-group>
           <el-date-picker
             v-if="draft.periodType === 'month'"

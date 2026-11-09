@@ -332,6 +332,7 @@ function exportProjects() {
       </header>
       <div class="six-table-controls">
         <el-input
+          class="app-search-input"
           v-model="search"
           clearable
           placeholder="搜索项目 / 城市"

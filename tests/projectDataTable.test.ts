@@ -30,7 +30,7 @@ assert.equal(rows.filter((row) => !!row.salesStatus).length, rows.length);
 const cityRows = buildProjectDataRows(records, { ...filter, organization: '上海公司' });
 assert.equal(cityRows.filter((row) => row.salesStatus === '未开盘').length, 1);
 assert.equal(cityRows.filter((row) => row.salesStatus === '新开盘').length, 1);
-assert.equal(projectDataColumns.length, 9);
+assert.equal(projectDataColumns.length, 11);
 assert.deepEqual(
   projectDataColumns.map((c) => c.key),
   [
@@ -43,6 +43,8 @@ assert.deepEqual(
     'leads',
     'feeRate',
     'contractCost',
+    'visitCost',
+    'leadCost',
   ],
 );
 assert.ok(rows.length > 0);
@@ -66,6 +68,8 @@ for (const row of rows) {
   assert.equal(row.visitConversion, (row.contracts / row.visitPeople) * 100);
   assert.equal(row.feeRate, (row.fee / row.amount) * 100);
   assert.equal(row.contractCost, (row.fee * 10000) / row.contracts);
+  assert.equal(row.visitCost, row.visits ? (row.fee * 10000) / row.visits : null);
+  assert.equal(row.leadCost, row.leads ? (row.fee * 10000) / row.leads : null);
 }
 const shorter = buildProjectDataRows(records, {
   ...filter,
@@ -86,6 +90,8 @@ assert.equal(
 assert.equal(total.visitConversion, (total.contracts / total.visitPeople) * 100);
 assert.equal(total.feeRate, (total.fee / total.amount) * 100);
 assert.equal(total.contractCost, (total.fee * 10000) / total.contracts);
+assert.equal(total.visitCost, (total.fee * 10000) / total.visits);
+assert.equal(total.leadCost, (total.fee * 10000) / total.leads);
 const zero = projectDataRates({
   ...summarize([]),
   name: '空',
@@ -97,6 +103,8 @@ assert.equal(zero.annualCompletion, null);
 assert.equal(zero.visitConversion, null);
 assert.equal(zero.feeRate, null);
 assert.equal(zero.contractCost, null);
+assert.equal(zero.visitCost, null);
+assert.equal(zero.leadCost, null);
 assert.deepEqual(buildProjectDataRows(records, { ...filter, project: '不存在的项目' }), []);
 assert.equal((barOption([], 'amount', false).xAxis as any).axisLabel.show, false);
 console.log(

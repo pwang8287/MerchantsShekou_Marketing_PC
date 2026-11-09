@@ -144,8 +144,8 @@ function cardProgress(k: KpiMetric) {
   margin: 0;
 }
 .kpi-metrics-panel .kpi-card {
-  min-height: 132px;
-  padding: 12px 8px;
+  min-height: 128px;
+  padding: 10px 8px;
   border: 0;
   border-radius: 7px;
   background: var(--kpi-tint);
@@ -159,7 +159,7 @@ function cardProgress(k: KpiMetric) {
 }
 .kpi-metrics-panel .kpi-value-pair {
   margin: 0;
-  gap: 8px;
+  gap: 6px;
   padding-bottom: 22px;
 }
 .kpi-metrics-panel .kpi-data-group:first-child {
@@ -176,8 +176,8 @@ function cardProgress(k: KpiMetric) {
   margin-bottom: 7px;
 }
 .kpi-metrics-panel .kpi-value {
-  font-size: 18px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   gap: 2px;
 }
 .kpi-metrics-panel .kpi-value small {
@@ -190,9 +190,13 @@ function cardProgress(k: KpiMetric) {
   font-size: 11px;
 }
 .kpi-metrics-panel :deep(.kpi-trend-button) {
-  width: 16px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
+}
+.kpi-metrics-panel :deep(.kpi-trend-icon) {
+  width: 14px;
+  height: 14px;
 }
 @media (max-width: 1250px) {
   .kpi-metrics-panel .kpi-grid {
@@ -242,7 +246,7 @@ function cardProgress(k: KpiMetric) {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .kpi-period-row .kpi-period {
   margin: 0;

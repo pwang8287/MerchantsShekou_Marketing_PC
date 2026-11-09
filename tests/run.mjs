@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const dir = await mkdtemp(join(tmpdir(), 'marketing-check-'));
 try {
-  for (const name of ['organizationContribution', 'channelRanking', 'conversionAttribution', 'metrics', 'nineGrid', 'channels', 'donutTooltip', 'channelFunnel', 'sixForces', 'dealCycle', 'kpiDaily', 'kpiDrilldown', 'kpiApi', 'projectMarketing', 'comparison', 'projectDataTable', 'customerStructure', 'advisorData', 'advisorReceptionMatrix', 'kpiTrend', 'statisticsPeriod', 'efficiencyPeriod', 'cityScope']) {
+  for (const name of ['propertyDistribution', 'organizationContribution', 'channelRanking', 'conversionAttribution', 'metrics', 'nineGrid', 'channels', 'donutTooltip', 'channelFunnel', 'sixForces', 'dealCycle', 'kpiDaily', 'kpiDrilldown', 'kpiApi', 'projectMarketing', 'comparison', 'projectDataTable', 'customerStructure', 'advisorData', 'advisorReceptionMatrix', 'kpiTrend', 'statisticsPeriod', 'efficiencyPeriod', 'cityScope']) {
     const outfile = join(dir, name + '.cjs');
     await build({
       entryPoints: ['tests/' + name + '.test.ts'],

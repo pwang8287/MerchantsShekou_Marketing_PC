@@ -4,7 +4,6 @@ import KpiCards from '../../components/dashboard/KpiCards.vue';
 import EfficiencySummary from './components/EfficiencySummary.vue';
 import ConversionAnalysis from './components/ConversionAnalysis.vue';
 import CityConversionComparison from './components/CityConversionComparison.vue';
-import EfficiencyAnalysis from './components/EfficiencyAnalysis.vue';
 import ProjectMarketingTable from './components/ProjectMarketingTable.vue';
 </script>
 <template>
@@ -17,7 +16,6 @@ import ProjectMarketingTable from './components/ProjectMarketingTable.vue';
   </div>
   <ConversionAnalysis />
   <CityConversionComparison />
-  <EfficiencyAnalysis />
   <ProjectMarketingTable />
 </template>
 <style scoped>

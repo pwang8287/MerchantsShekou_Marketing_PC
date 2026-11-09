@@ -10,18 +10,26 @@ export interface ProjectDataRow extends AggregateRow {
   visitConversion: number | null;
   feeRate: number | null;
   contractCost: number | null;
+  visitCost: number | null;
+  leadCost: number | null;
 }
 export function projectDataRates<
   T extends AggregateRow & { annualAmount: number; annualTarget: number },
 >(
   row: T,
-): T & Pick<ProjectDataRow, 'annualCompletion' | 'visitConversion' | 'feeRate' | 'contractCost'> {
+): T &
+  Pick<
+    ProjectDataRow,
+    'annualCompletion' | 'visitConversion' | 'feeRate' | 'contractCost' | 'visitCost' | 'leadCost'
+  > {
   return {
     ...row,
     annualCompletion: row.annualTarget ? (row.annualAmount / row.annualTarget) * 100 : null,
     visitConversion: row.visitPeople ? (row.contracts / row.visitPeople) * 100 : null,
     feeRate: row.amount ? (row.fee / row.amount) * 100 : null,
     contractCost: row.contracts ? (row.fee * 10000) / row.contracts : null,
+    visitCost: row.visits ? (row.fee * 10000) / row.visits : null,
+    leadCost: row.leads ? (row.fee * 10000) / row.leads : null,
   };
 }
 export function buildProjectDataRows(
@@ -101,6 +109,22 @@ export const projectDataColumns = [
     digits: 2,
     width: 125,
     note: '所选周期营销费用（万元）× 10000 ÷ 签约套数。',
+  },
+  {
+    key: 'visitCost',
+    label: '单组到访成本',
+    unit: '元/组',
+    digits: 2,
+    width: 120,
+    note: '所选周期营销费用（万元）× 10000 ÷ 到访组数；与营销效率指标口径一致，零到访显示 -。',
+  },
+  {
+    key: 'leadCost',
+    label: '单条线索成本',
+    unit: '元/组',
+    digits: 2,
+    width: 120,
+    note: '所选周期营销费用（万元）× 10000 ÷ 线索数量；零线索显示 -。',
   },
 ] as const;
 export type ProjectDataKey = (typeof projectDataColumns)[number]['key'];
