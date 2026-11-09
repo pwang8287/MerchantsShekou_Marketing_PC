@@ -11,6 +11,7 @@ import { projectSalesStatuses, type ProjectSalesStatus } from '../../../mocks/pr
 import {
   buildProjectDataRows,
   projectDataColumns,
+  monthlyCompletionColumn,
   type ProjectDataKey,
   type ProjectDataRow,
 } from '../../../utils/projectDataTable';
@@ -82,7 +83,12 @@ const columns = computed(() => {
         note: '推荐成交套数 ÷ 推荐到访人数 × 100%；到访人数为零时显示 -。',
       },
     ];
-  if (!advisorMode.value) return [...projectDataColumns];
+  if (!advisorMode.value)
+    return projectDataColumns.map((column) =>
+      column.key === 'annualCompletion' && analysisFilter.value.periodType === 'month'
+        ? monthlyCompletionColumn
+        : column,
+    );
   const keys = [
     'annualCompletion',
     'amount',
@@ -136,6 +142,17 @@ const sort = ref<{ prop: TableKey; order: string | null }>({
   prop: 'amount',
   order: 'descending',
 });
+watch(
+  () => analysisFilter.value.periodType,
+  (periodType) => {
+    if (!advisorMode.value && ['annualCompletion', 'monthlyCompletion'].includes(sort.value.prop)) {
+      sort.value = {
+        ...sort.value,
+        prop: periodType === 'month' ? 'monthlyCompletion' : 'annualCompletion',
+      };
+    }
+  },
+);
 watch(advisorTab, () => {
   search.value = '';
   page.value = 1;

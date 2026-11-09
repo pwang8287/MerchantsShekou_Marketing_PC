@@ -110,3 +110,39 @@ assert.equal((barOption([], 'amount', false).xAxis as any).axisLabel.show, false
 console.log(
   '通过：项目明细列顺序、年度截止日及全年目标、年度进度独立起始日、合计加权、零分母、排名X轴隐藏。',
 );
+const monthlyFilter: DashboardFilter = {
+  ...filter,
+  periodType: 'month',
+  periodAnchor: '2026-11',
+  period: ['2026-11', '2026-11'],
+  metricDateRange: ['2026-11-01', '2026-11-02'],
+};
+const monthlyRows = buildProjectDataRows(records, monthlyFilter);
+for (const row of monthlyRows) {
+  const scope = { ...monthlyFilter, project: row.name };
+  const actual = summarize(
+    selectKpiDateRows(records, scope, {
+      start: '2026-11-01',
+      end: '2026-11-02',
+      mode: 'cumulative',
+    }),
+  );
+  const target = summarize(
+    selectKpiDateRows(records, scope, {
+      start: '2026-11-01',
+      end: '2026-11-30',
+      mode: 'cumulative',
+    }),
+  );
+  assert.equal(row.monthlyCompletion, target.target ? (actual.amount / target.target) * 100 : null);
+  assert.equal(row.monthlyAmount, row.amount);
+}
+assert.equal(zero.monthlyCompletion, null);
+const monthlyTotal = summarizeProjectData(monthlyRows);
+assert.equal(
+  monthlyTotal.monthlyCompletion,
+  (monthlyTotal.monthlyAmount! / monthlyTotal.monthlyTarget!) * 100,
+);
+console.log(
+  '通过：项目月度签约达成率使用月初至截止日实际及完整月目标，月/年口径分离、加权汇总、零目标保护。',
+);

@@ -2,11 +2,15 @@ import type { AggregateRow, DashboardFilter, MarketingPerformanceMetric } from '
 import { filterRows, groupRows, summarize } from './metrics';
 import { kpiDateRange, selectKpiDateRows } from './kpiDaily';
 import { projectSalesStatus, type ProjectSalesStatus } from '../mocks/projectSalesStatus';
+import { calendarBounds } from './statisticsPeriod';
 export interface ProjectDataRow extends AggregateRow {
   salesStatus?: ProjectSalesStatus;
   annualAmount: number;
   annualTarget: number;
   annualCompletion: number | null;
+  monthlyAmount?: number;
+  monthlyTarget?: number;
+  monthlyCompletion: number | null;
   visitConversion: number | null;
   feeRate: number | null;
   contractCost: number | null;
@@ -14,17 +18,31 @@ export interface ProjectDataRow extends AggregateRow {
   leadCost: number | null;
 }
 export function projectDataRates<
-  T extends AggregateRow & { annualAmount: number; annualTarget: number },
+  T extends AggregateRow & {
+    annualAmount: number;
+    annualTarget: number;
+    monthlyAmount?: number;
+    monthlyTarget?: number;
+  },
 >(
   row: T,
 ): T &
   Pick<
     ProjectDataRow,
-    'annualCompletion' | 'visitConversion' | 'feeRate' | 'contractCost' | 'visitCost' | 'leadCost'
+    | 'annualCompletion'
+    | 'monthlyCompletion'
+    | 'visitConversion'
+    | 'feeRate'
+    | 'contractCost'
+    | 'visitCost'
+    | 'leadCost'
   > {
   return {
     ...row,
     annualCompletion: row.annualTarget ? (row.annualAmount / row.annualTarget) * 100 : null,
+    monthlyCompletion: row.monthlyTarget
+      ? ((row.monthlyAmount ?? 0) / row.monthlyTarget) * 100
+      : null,
     visitConversion: row.visitPeople ? (row.contracts / row.visitPeople) * 100 : null,
     feeRate: row.amount ? (row.fee / row.amount) * 100 : null,
     contractCost: row.contracts ? (row.fee * 10000) / row.contracts : null,
@@ -39,6 +57,18 @@ export function buildProjectDataRows(
 ): ProjectDataRow[] {
   const end = kpiDateRange(filter, 'cumulative').end;
   const start = end.slice(0, 4) + '-01-01';
+  const month = calendarBounds('month', end.slice(0, 7));
+  const monthlyActual = new Map(
+    groupRows(
+      selectKpiDateRows(rows, filter, { start: month.start, end, mode: 'cumulative' }),
+      dimension,
+    ).map((row) => [row.name, row.amount]),
+  );
+  const monthlyTarget = new Map(
+    groupRows(selectKpiDateRows(rows, filter, { ...month, mode: 'cumulative' }), dimension).map(
+      (row) => [row.name, row.target],
+    ),
+  );
   const actual = new Map(
     groupRows(selectKpiDateRows(rows, filter, { start, end, mode: 'cumulative' }), dimension).map(
       (r) => [r.name, r.amount],
@@ -60,6 +90,8 @@ export function buildProjectDataRows(
       salesStatus: dimension === 'project' ? projectSalesStatus[row.name] : undefined,
       annualAmount: actual.get(row.name) ?? 0,
       annualTarget: target.get(row.name) ?? 0,
+      monthlyAmount: monthlyActual.get(row.name) ?? 0,
+      monthlyTarget: monthlyTarget.get(row.name) ?? 0,
     }),
   );
 }
@@ -70,6 +102,8 @@ export function summarizeProjectData(rows: ProjectDataRow[]) {
     records: rows.flatMap((r) => r.records),
     annualAmount: rows.reduce((s, r) => s + r.annualAmount, 0),
     annualTarget: rows.reduce((s, r) => s + r.annualTarget, 0),
+    monthlyAmount: rows.reduce((s, r) => s + (r.monthlyAmount ?? 0), 0),
+    monthlyTarget: rows.reduce((s, r) => s + (r.monthlyTarget ?? 0), 0),
   });
 }
 export const projectDataColumns = [
@@ -127,4 +161,12 @@ export const projectDataColumns = [
     note: '所选周期营销费用（万元）× 10000 ÷ 线索数量；零线索显示 -。',
   },
 ] as const;
-export type ProjectDataKey = (typeof projectDataColumns)[number]['key'];
+export type ProjectDataKey = (typeof projectDataColumns)[number]['key'] | 'monthlyCompletion';
+export const monthlyCompletionColumn = {
+  key: 'monthlyCompletion' as const,
+  label: '月度签约达成率',
+  unit: '%',
+  digits: 2,
+  width: 130,
+  note: '所选月份月初至统计截止日签约金额 ÷ 该月完整签约目标金额 × 100%；目标为零时显示 -。',
+};
