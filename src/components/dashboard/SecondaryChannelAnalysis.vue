@@ -179,7 +179,7 @@ const percent = (value: number, denominator: number) =>
           align="right"
           min-width="65"
           ><template #default="{ row }">{{
-            percent(row.leads, total.leads)
+            isChannelAverage(row) ? '-' : percent(row.leads, total.leads)
           }}</template></el-table-column
         >
         <el-table-column

@@ -7,7 +7,10 @@ import { User, Calendar, Collection, Histogram } from '@element-plus/icons-vue';
 import type { KpiMetric } from '../../types';
 import { fmt } from '../../utils/metrics';
 import { kpiColor } from '../../utils/kpiColors';
-withDefaults(defineProps<{ grouped?: boolean }>(), { grouped: false });
+withDefaults(defineProps<{ grouped?: boolean; valueClickable?: boolean }>(), {
+  grouped: false,
+  valueClickable: true,
+});
 const { store, kpis } = useDashboard();
 const icons = [User, Calendar, Collection, Histogram];
 function cardProgress(k: KpiMetric) {
@@ -68,16 +71,17 @@ function cardProgress(k: KpiMetric) {
                 :mode="mode"
               />
             </div>
-            <button
+            <component
+              :is="valueClickable ? 'button' : 'div'"
               class="kpi-data-button"
-              :disabled="!store.filtered.length || !!store.error"
-              @click="store.openKpiDetail(k.key, mode)"
+              :disabled="valueClickable ? !store.filtered.length || !!store.error : undefined"
+              v-bind="valueClickable ? { onClick: () => store.openKpiDetail(k.key, mode) } : {}"
             >
               <span class="kpi-value"
                 >{{ store.filtered.length ? (mode === 'yesterday' ? k.yesterday : k.value) : '—'
                 }}<small>{{ k.unit }}</small></span
               >
-            </button>
+            </component>
             <div
               v-if="
                 mode === 'cumulative' &&
@@ -261,7 +265,7 @@ function cardProgress(k: KpiMetric) {
   width: 100%;
   border-radius: 4px;
 }
-.kpi-data-button:hover .kpi-value {
+button.kpi-data-button:hover .kpi-value {
   filter: brightness(0.9);
 }
 .kpi-data-button:disabled {

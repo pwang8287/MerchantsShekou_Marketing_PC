@@ -27,6 +27,11 @@ const props = withDefaults(
     advisorList: false,
   },
 );
+const salesStatusOptions = [
+  '全部',
+  ...projectSalesStatuses.filter((status) => status !== '未开盘'),
+  '未开盘',
+];
 type TableRow = ProjectDataRow & { revisitRate: number | null; dealCycle: number | null };
 const dealCycleColumn = {
   key: 'dealCycle' as const,
@@ -90,7 +95,7 @@ const columns = computed(() => {
         : column,
     );
   const keys = [
-    'annualCompletion',
+    ...(!props.advisorList ? ['annualCompletion'] : []),
     'amount',
     'visitPeople',
     'subscriptionUnits',
@@ -272,7 +277,7 @@ function download() {
           aria-label="项目开盘状态"
         >
           <el-radio-button
-            v-for="status in ['全部', ...projectSalesStatuses]"
+            v-for="status in salesStatusOptions"
             :key="status"
             :value="status"
             >{{

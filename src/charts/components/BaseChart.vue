@@ -25,6 +25,7 @@ let chart: echarts.ECharts | undefined;
 let observer: ResizeObserver | undefined;
 let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
 let hadPinnedTooltip = false;
+let hoveredBubbleTarget: unknown;
 function syncHighlight() {
   if (props.highlightName === undefined) return;
   chart?.dispatchAction({ type: 'downplay' });
@@ -77,15 +78,25 @@ function render() {
       if (!props.hoverOnlyAxisPointer) return;
       const event = params.event;
       if (params.seriesType === 'scatter' && params.data && event) {
+        hoveredBubbleTarget = event.target;
         updateHoverPointer('mousemove', event.offsetX, event.offsetY);
+      }
+    });
+    // 点击会重建气泡系列，旧图形不一定再触发 mouseout；同时检查画布的实际命中对象。
+    chart.getZr().on('mousemove', (event) => {
+      if (props.hoverOnlyAxisPointer && (!event.target || event.target !== hoveredBubbleTarget)) {
+        hoveredBubbleTarget = undefined;
+        updateHoverPointer('leave');
       }
     });
     chart.on('mouseout', () => {
       emit('leave');
+      hoveredBubbleTarget = undefined;
       if (props.hoverOnlyAxisPointer) updateHoverPointer('leave');
     });
     chart.getZr().on('globalout', () => {
       emit('leave');
+      hoveredBubbleTarget = undefined;
       if (props.hoverOnlyAxisPointer) updateHoverPointer('leave');
     });
   }
@@ -113,6 +124,12 @@ function render() {
     },
   );
   chart.resize();
+  if (props.hoverOnlyAxisPointer) {
+    // 系列更新会复用旧气泡图形；清除继承的悬浮高亮及其他气泡的 blur 状态。
+    chart.dispatchAction({ type: 'downplay' });
+    hoveredBubbleTarget = undefined;
+    updateHoverPointer('leave');
+  }
   syncHighlight();
   if (props.pinnedTooltip) {
     hadPinnedTooltip = true;

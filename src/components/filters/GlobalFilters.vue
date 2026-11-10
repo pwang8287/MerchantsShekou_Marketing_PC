@@ -17,6 +17,8 @@ const isMultiAnalysis = computed(() =>
 );
 const isProjectPage = computed(() => route.name === 'project-marketing-detail');
 const isHomePage = computed(() => route.path === '/marketing-analysis');
+const isCityPage = computed(() => route.name === 'city-marketing-detail');
+const onlyMonthAndYear = computed(() => isHomePage.value || isMultiAnalysis.value || isCityPage.value);
 const projectSearch = ref('');
 const projectSearchInput = ref<InputInstance>();
 const projectOptions = computed(() => [...new Set(store.rows.map((row) => row.project))]);
@@ -103,7 +105,7 @@ const quarter = computed({
   },
 });
 watch(
-  () => isHomePage.value || isMultiAnalysis.value,
+  () => onlyMonthAndYear.value,
   (visible) => {
     if (visible && ['quarter', 'custom'].includes(draft.periodType || '')) changeType('month');
   },
@@ -171,10 +173,10 @@ function reset() {
             @update:model-value="changeType"
           >
             <el-radio-button value="month">月</el-radio-button
-            ><el-radio-button v-if="!isHomePage && !isMultiAnalysis" value="quarter"
+            ><el-radio-button v-if="!onlyMonthAndYear" value="quarter"
               >季</el-radio-button
             ><el-radio-button value="year">年</el-radio-button
-            ><el-radio-button v-if="!isHomePage && !isMultiAnalysis" value="custom"
+            ><el-radio-button v-if="!onlyMonthAndYear" value="custom"
               >自定义</el-radio-button
             >
           </el-radio-group>

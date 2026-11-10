@@ -325,7 +325,7 @@ const structure = computed<EChartsOption>(() => {
                   align="right"
                 >
                   <template #default="{ row }">{{
-                    row.share === null ? '—' : fmt(row.share, 2) + '%'
+                    isChannelAverage(row) ? '-' : row.share === null ? '—' : fmt(row.share, 2) + '%'
                   }}</template>
                 </el-table-column>
                 <el-table-column

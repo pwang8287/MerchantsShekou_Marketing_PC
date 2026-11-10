@@ -96,17 +96,6 @@ function percentage(row: typeof total.value, column: RateColumn) {
 function channelRowClass({ row }: { row: AggregateRow }) {
   return isChannelAverage(row) ? 'channel-average-row' : '';
 }
-function totals() {
-  return [
-    '合计',
-    fmt(total.value.visitPeople) + ' 人',
-    fmt(total.value.subscriptionUnits) + ' 套',
-    fmt(total.value.contracts) + ' 套',
-    percent(total.value.contracts, total.value.contracts),
-    ...rateColumns.map((column) => percentage(total.value, column)),
-    percent(summarize(projectRows.value).contracts, summarize(projectRows.value).visitPeople),
-  ];
-}
 </script>
 
 <template>
@@ -119,8 +108,6 @@ function totals() {
         class="channel-legend-table"
         @sort-change="tableSort = $event"
         :row-class-name="channelRowClass"
-        show-summary
-        :summary-method="totals"
         size="small"
       >
         <el-table-column prop="name" sortable="custom" label="渠道" min-width="90">
@@ -156,7 +143,9 @@ function totals() {
           align="right"
           min-width="70"
         >
-          <template #default="{ row }">{{ percent(row.contracts, total.contracts) }}</template>
+          <template #default="{ row }">{{
+            isChannelAverage(row) ? '-' : percent(row.contracts, total.contracts)
+          }}</template>
         </el-table-column>
         <el-table-column
           v-for="column in rateColumns"

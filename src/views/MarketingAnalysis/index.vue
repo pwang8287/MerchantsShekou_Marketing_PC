@@ -7,7 +7,7 @@ import EfficiencySummary from './components/EfficiencySummary.vue';
 import ProjectMarketingTable from './components/ProjectMarketingTable.vue';
 </script>
 <template>
-  <KpiCards />
+  <KpiCards :value-clickable="false" />
   <EfficiencySummary />
   <ConversionAnalysis />
   <CityConversionComparison />

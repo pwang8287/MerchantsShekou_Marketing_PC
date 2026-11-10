@@ -21,7 +21,9 @@ const isProjectDetail = computed(() => route.name === 'project-marketing-detail'
 const dimension = ref<AttributionDimension>('channel');
 const detailVisible = ref(false);
 const comparisonMode = ref<AttributionComparison>('mom');
-const comparisonLabel = computed(() => (comparisonMode.value === 'yoy' ? '同比' : '环比'));
+const isYearPeriod = computed(() => store.filter.periodType === 'year');
+const effectiveComparison = computed(() => (isYearPeriod.value ? 'yoy' : comparisonMode.value));
+const comparisonLabel = computed(() => (effectiveComparison.value === 'yoy' ? '同比' : '环比'));
 const dimensions = [
   { key: 'channel', label: '渠道' },
   { key: 'group', label: '城市群' },
@@ -34,7 +36,7 @@ const analysis = computed(() =>
     store.filter,
     props.stage.key,
     isProjectDetail.value ? 'channel' : dimension.value,
-    comparisonMode.value,
+    effectiveComparison.value,
   ),
 );
 const signed = (value: number) => (value > 0 ? '+' : '') + fmt(value);
@@ -129,7 +131,7 @@ const option = computed<EChartsOption>(() => {
 <template>
   <div class="attribution-analysis">
     <div class="attribution-toolbar">
-      <div class="attribution-comparison" role="group" aria-label="归因比较方式">
+      <div v-if="!isYearPeriod" class="attribution-comparison" role="group" aria-label="归因比较方式">
         <button
           :class="{ active: comparisonMode === 'yoy' }"
           :aria-pressed="comparisonMode === 'yoy'"
@@ -206,6 +208,7 @@ const option = computed<EChartsOption>(() => {
   gap: 12px;
 }
 .attribution-detail-link {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;

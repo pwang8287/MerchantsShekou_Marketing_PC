@@ -49,6 +49,12 @@ const metricTitle = computed(() => metricNames[metric.value]);
 const cells = computed(() => buildPropertyDistribution(store.filtered, store.filter.period[1]));
 const propertyData = computed(() => sumPropertyDistribution(cells.value, 'property', metric.value));
 const total = computed(() => propertyData.value.reduce((sum, row) => sum + row.value, 0));
+const centerValueFontSize = computed(() =>
+  Math.min(
+    18,
+    Math.max(10, Math.floor((donutRadius.value * 1.42 - 12) / (fmt(total.value).length * 0.62))),
+  ),
+);
 const selectedCells = computed(() =>
   cells.value.filter((cell) => !property.value || cell.property === property.value),
 );
@@ -74,52 +80,8 @@ const donut = computed<EChartsOption>(() => ({
       type: 'pie',
       radius: [donutRadius.value * 0.71, donutRadius.value],
       center: ['50%', '50%'],
-      label: {
-        show: true,
-        position: 'outside',
-        distanceToLabelLine: 5,
-        bleedMargin: 4,
-        formatter: (params) =>
-          `{name|${params.name}}\n{value|${fmt(Number(params.value))} 套}\n{percent|${Number(params.percent || 0).toFixed(2)}%}`,
-        rich: {
-          name: { fontSize: 11, lineHeight: 18, fontWeight: 600, color: '#4a5e7a' },
-          value: { fontSize: 11, lineHeight: 17, fontWeight: 500, color: '#182b48' },
-          percent: { fontSize: 10, lineHeight: 16, color: '#7385a2' },
-        },
-      },
-      labelLine: { show: true, length: 14, length2: 12, smooth: false, lineStyle: { width: 1.2 } },
-      labelLayout: (params) => {
-        const width = compositionWidth.value;
-        // 顺着色块顺序安排右中、右下、左下、左中、左上、右上六个标签位。
-        const slots = [
-          { right: true, y: 123 },
-          { right: true, y: 203 },
-          { right: false, y: 203 },
-          { right: false, y: 123 },
-          { right: false, y: 43 },
-          { right: true, y: 43 },
-        ];
-        const slot = slots[params.dataIndex ?? 0];
-        const anchor = params.labelLinePoints?.[0] || [width / 2, 123];
-        const angle = Math.atan2(anchor[1] - 123, anchor[0] - width / 2);
-        const elbowRadius = donutRadius.value + 14;
-        const offset = donutRadius.value * (slot.y === 123 ? 1 : 0.6) + 24;
-        const labelX = slot.right
-          ? Math.min(width / 2 + offset, width - params.labelRect.width - 8)
-          : Math.max(width / 2 - offset, params.labelRect.width + 8);
-        const endX = labelX + (slot.right ? -5 : 5);
-        return {
-          x: labelX,
-          y: slot.y,
-          align: slot.right ? 'left' : 'right',
-          verticalAlign: 'middle',
-          labelLinePoints: [
-            anchor,
-            [width / 2 + Math.cos(angle) * elbowRadius, 123 + Math.sin(angle) * elbowRadius],
-            [endX, slot.y],
-          ],
-        };
-      },
+      label: { show: false },
+      labelLine: { show: false },
       itemStyle: { borderColor: '#fff', borderWidth: 2 },
       emphasis: { scale: true, scaleSize: 5 },
       data: propertyData.value.map((row) => ({
@@ -129,17 +91,70 @@ const donut = computed<EChartsOption>(() => ({
     },
   ],
   graphic: [
+    ...propertyData.value.flatMap((row, index) => {
+      const slots = [
+        { right: true, y: 123 },
+        { right: true, y: 203 },
+        { right: false, y: 203 },
+        { right: false, y: 123 },
+        { right: false, y: 43 },
+        { right: true, y: 43 },
+      ];
+      const slot = slots[index];
+      const centerX = compositionWidth.value / 2;
+      const radius = donutRadius.value;
+      const before = propertyData.value.slice(0, index).reduce((sum, item) => sum + item.value, 0);
+      const angle = -Math.PI / 2 + ((before + row.value / 2) / (total.value || 1)) * Math.PI * 2;
+      const labelX = centerX + (slot.right ? 1 : -1) * (radius + 24);
+      return [
+        {
+          type: 'polyline' as const,
+          silent: true,
+          shape: {
+            points: [
+              [centerX + Math.cos(angle) * radius, 123 + Math.sin(angle) * radius],
+              [centerX + Math.cos(angle) * (radius + 14), 123 + Math.sin(angle) * (radius + 14)],
+              [labelX + (slot.right ? -5 : 5), slot.y],
+            ],
+          },
+          style: { stroke: colors[index], lineWidth: 1.2, fill: 'none' },
+        },
+        {
+          type: 'text' as const,
+          silent: true,
+          x: labelX,
+          y: slot.y,
+          style: {
+            text: `{name|${row.name}}\n{value|${fmt(row.value)} 套}\n{percent|${fmt(total.value ? (row.value / total.value) * 100 : 0, 2)}%}`,
+            textAlign: slot.right ? ('left' as const) : ('right' as const),
+            textVerticalAlign: 'middle' as const,
+            rich: {
+              name: { fontSize: 11, lineHeight: 18, fontWeight: 600, fill: '#4a5e7a' },
+              value: { fontSize: 11, lineHeight: 17, fontWeight: 500, fill: '#182b48' },
+              percent: { fontSize: 10, lineHeight: 16, fill: '#7385a2' },
+            },
+          },
+        },
+      ];
+    }),
     {
       type: 'text',
       left: 'center',
-      top: '39%',
-      style: { text: fmt(total.value), fill: '#182b48', fontSize: 24, fontWeight: 700 },
-    },
-    {
-      type: 'text',
-      left: 'center',
-      top: '52%',
-      style: { text: '全部业态 · 套', fill: '#7b8aa3', fontSize: 12 },
+      top: 'middle',
+      silent: true,
+      style: {
+        text: `{value|${fmt(total.value)}}\n{caption|全部业态 · 套}`,
+        textAlign: 'center',
+        rich: {
+          value: {
+            fill: '#182b48',
+            fontSize: centerValueFontSize.value,
+            fontWeight: 700,
+            lineHeight: 24,
+          },
+          caption: { fill: '#7b8aa3', fontSize: 10, lineHeight: 16 },
+        },
+      },
     },
   ],
 }));
