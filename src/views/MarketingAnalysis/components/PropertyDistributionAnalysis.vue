@@ -29,7 +29,7 @@ onBeforeUnmount(() => compositionObserver?.disconnect());
 const donutRadius = computed(() => Math.max(36, Math.min(57, (compositionWidth.value - 190) / 2)));
 const metric = ref<PropertyMetric>('contracts');
 const property = ref('');
-const area = ref(areaBands[1]);
+const area = ref('');
 const dimension = ref<ChannelRankingDimension>('group');
 const dimensions = computed(() => channelRankingDimensions(store.filter, store.cityScope));
 const dimensionLabels = { group: '城市群', organization: '城市公司', project: '项目' };
@@ -62,7 +62,7 @@ const areaData = computed(() => sumPropertyDistribution(selectedCells.value, 'ar
 const selectedTotal = computed(() => areaData.value.reduce((sum, row) => sum + row.value, 0));
 const organizationData = computed(() =>
   sumPropertyDistribution(
-    selectedCells.value.filter((cell) => cell.area === area.value),
+    selectedCells.value.filter((cell) => !area.value || cell.area === area.value),
     dimension.value,
     metric.value,
   ).sort((a, b) => b.value - a.value),
@@ -206,7 +206,7 @@ function barOption(data: { name: string; value: number }[], selectable = false):
           ...row,
           itemStyle: {
             color: '#2873ed',
-            opacity: row.average ? 0.25 : selectable && row.name !== area.value ? 0.6 : 1,
+            opacity: row.average ? 0.25 : selectable && area.value && row.name !== area.value ? 0.6 : 1,
             borderRadius: [5, 5, 0, 0],
             borderWidth: row.average ? 1 : 0,
             borderType: 'dashed',
@@ -237,7 +237,7 @@ function barOption(data: { name: string; value: number }[], selectable = false):
 const areaOption = computed(() => barOption(areaData.value, true));
 const organizationOption = computed(() => barOption(organizationData.value));
 function selectArea(name: string) {
-  if (areaBands.includes(name)) area.value = name;
+  if (areaBands.includes(name)) area.value = area.value === name ? '' : name;
 }
 </script>
 <template>
@@ -289,7 +289,7 @@ function selectArea(name: string) {
       </span>
       <section class="distribution-chart">
         <header>
-          <h3>{{ area }} · {{ metricTitle }}</h3>
+          <h3>{{ area || '全部面积段' }} · {{ metricTitle }}</h3>
           <el-radio-group
             v-if="dimensions.length > 1"
             v-model="dimension"
