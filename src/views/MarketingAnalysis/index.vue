@@ -8,7 +8,7 @@ import ProjectMarketingTable from './components/ProjectMarketingTable.vue';
 </script>
 <template>
   <KpiCards :value-clickable="false" />
-  <EfficiencySummary />
+  <EfficiencySummary simplified />
   <ConversionAnalysis />
   <CityConversionComparison />
   <PropertyDistributionAnalysis />
