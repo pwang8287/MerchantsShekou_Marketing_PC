@@ -6,6 +6,7 @@ import {
   resolveStatisticsPeriod,
   statisticsPeriodPrefix,
   formatStatisticsPeriod,
+  showYesterdayMetric,
 } from '../src/utils/statisticsPeriod';
 import { comparableDateRanges, kpiDateRange, selectKpiDateRows } from '../src/utils/kpiDaily';
 import { filterRows, summarize, fmt } from '../src/utils/metrics';
@@ -28,6 +29,17 @@ const base: DashboardFilter = {
 };
 const build = (type: StatisticsPeriodType, anchor: string) =>
   resolveStatisticsPeriod({ ...base, periodType: type, periodAnchor: anchor }, now);
+assert.equal(showYesterdayMetric(build('month', '2026-11'), now), true);
+assert.equal(showYesterdayMetric(build('month', '2026-10'), now), false);
+assert.equal(showYesterdayMetric(build('month', '2025-11'), now), false);
+assert.equal(showYesterdayMetric(build('month', '2026-12'), now), false);
+assert.equal(showYesterdayMetric(build('year', '2026'), now), true);
+assert.equal(showYesterdayMetric(build('year', '2025'), now), false);
+assert.equal(showYesterdayMetric(build('year', '2027'), now), false);
+assert.equal(showYesterdayMetric(build('quarter', '2026-Q4'), now), false);
+assert.equal(showYesterdayMetric({ ...base, periodType: 'custom' }, now), false);
+assert.equal(showYesterdayMetric({ ...base, periodType: 'month' }, now), true);
+assert.equal(showYesterdayMetric(build('month', '2026-11'), new Date(2027, 0, 1)), false);
 assert.deepEqual(build('month', '2026-11').metricDateRange, ['2026-11-01', '2026-11-02']);
 assert.deepEqual(build('quarter', '2026-Q4').metricDateRange, ['2026-10-01', '2026-11-02']);
 assert.deepEqual(build('year', '2026').metricDateRange, ['2026-01-01', '2026-11-02']);

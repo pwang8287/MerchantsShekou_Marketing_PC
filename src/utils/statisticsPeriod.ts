@@ -9,6 +9,14 @@ export function periodAnchor(type: StatisticsPeriodType, date: string) {
     return `${date.slice(0, 4)}-Q${Math.floor((Number(date.slice(5, 7)) - 1) / 3) + 1}`;
   return date.slice(0, 7);
 }
+export function showYesterdayMetric(filter: DashboardFilter, now = new Date()): boolean {
+  const type = filter.periodType;
+  if (type !== 'month' && type !== 'year') return false;
+  const selected =
+    filter.periodAnchor ||
+    periodAnchor(type, filter.metricDateRange?.[1] || filter.metricDate || filter.period[1]);
+  return selected === periodAnchor(type, machineDate(now));
+}
 export function formatStatisticsPeriod(filter: DashboardFilter): string {
   const type = filter.periodType || 'custom';
   const range = filter.metricDateRange || [

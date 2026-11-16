@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import KpiTrendPopover from './KpiTrendPopover.vue';
 import ComparisonBadge from '../common/ComparisonBadge.vue';
-import { statisticsPeriodPrefix } from '../../utils/statisticsPeriod';
+import { showYesterdayMetric, statisticsPeriodPrefix } from '../../utils/statisticsPeriod';
 import { useDashboard } from '../../composables/useDashboard';
 import { User, Calendar, Collection, Histogram } from '@element-plus/icons-vue';
 import type { KpiMetric } from '../../types';
@@ -12,6 +13,10 @@ withDefaults(defineProps<{ grouped?: boolean; valueClickable?: boolean }>(), {
   valueClickable: true,
 });
 const { store, kpis } = useDashboard();
+const showYesterday = computed(() => showYesterdayMetric(store.filter));
+const displayModes = computed(() =>
+  showYesterday.value ? (['yesterday', 'cumulative'] as const) : (['cumulative'] as const),
+);
 const icons = [User, Calendar, Collection, Histogram];
 function cardProgress(k: KpiMetric) {
   if (k.key === 'leads')
@@ -55,12 +60,8 @@ function cardProgress(k: KpiMetric) {
           ><span>{{ k.label }}</span
           ><span class="kpi-info" :title="k.note">ⓘ</span>
         </div>
-        <div class="kpi-value-pair">
-          <div
-            v-for="mode in ['yesterday', 'cumulative'] as const"
-            :key="mode"
-            class="kpi-data-group"
-          >
+        <div class="kpi-value-pair" :class="{ 'single-metric': !showYesterday }">
+          <div v-for="mode in displayModes" :key="mode" class="kpi-data-group">
             <div class="kpi-period-row">
               <span class="kpi-period"
                 >{{ mode === 'yesterday' ? '昨日' : statisticsPeriodPrefix(store.filter.periodType)
@@ -90,7 +91,9 @@ function cardProgress(k: KpiMetric) {
               class="kpi-inline-comparisons"
               :class="{
                 'period-comparison-left':
-                  grouped || ['quarter', 'year'].includes(store.filter.periodType || ''),
+                  !showYesterday ||
+                  grouped ||
+                  ['quarter', 'year'].includes(store.filter.periodType || ''),
               }"
             >
               <span>同比 <ComparisonBadge :value="k.yoy" /></span>
@@ -166,7 +169,7 @@ function cardProgress(k: KpiMetric) {
   gap: 6px;
   padding-bottom: 22px;
 }
-.kpi-metrics-panel .kpi-data-group:first-child {
+.kpi-metrics-panel .kpi-data-group:first-child:not(:only-child) {
   padding-right: 8px;
   border-right: 1px solid #dfe6ef;
 }
@@ -215,6 +218,9 @@ function cardProgress(k: KpiMetric) {
 .kpi-data-group {
   min-width: 0;
   position: relative;
+}
+.kpi-value-pair.single-metric {
+  grid-template-columns: minmax(0, 1fr);
 }
 .kpi-inline-comparisons {
   position: absolute;
