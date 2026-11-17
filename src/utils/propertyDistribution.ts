@@ -4,7 +4,7 @@ import { groupRows } from './metrics';
 import organizationTree from '../mocks/organizationTree.json';
 
 export const propertyTypes = ['住宅', '商业', '公寓', '写字楼', '车位', '配套及其他'];
-export const areaBands = ['<40㎡', '40–90㎡', '90–140㎡', '140–180㎡', '>180㎡'];
+export const areaBands = ['<40㎡', '40-90㎡', '90-140㎡', '140-180㎡', '≥180㎡'];
 export type PropertyMetric = 'available' | 'subscriptionUnits' | 'contracts';
 export interface PropertyDistributionCell {
   project: string;

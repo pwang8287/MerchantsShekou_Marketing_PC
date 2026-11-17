@@ -6,7 +6,6 @@ import { useDashboardStore } from '../../../stores/dashboard';
 import {
   buildPropertyDistribution,
   sumPropertyDistribution,
-  areaBands,
   type PropertyMetric,
 } from '../../../utils/propertyDistribution';
 import {
@@ -58,11 +57,29 @@ const centerValueFontSize = computed(() =>
 const selectedCells = computed(() =>
   cells.value.filter((cell) => !property.value || cell.property === property.value),
 );
-const areaData = computed(() => sumPropertyDistribution(selectedCells.value, 'area', metric.value));
+const areaData = computed(() => {
+  if (property.value === '车位') {
+    return selectedCells.value.length
+      ? [
+          {
+            name: '1㎡',
+            value: selectedCells.value.reduce((sum, cell) => sum + cell[metric.value], 0),
+          },
+        ]
+      : [];
+  }
+  return sumPropertyDistribution(selectedCells.value, 'area', metric.value);
+});
 const selectedTotal = computed(() => areaData.value.reduce((sum, row) => sum + row.value, 0));
 const organizationData = computed(() =>
   sumPropertyDistribution(
-    selectedCells.value.filter((cell) => !area.value || cell.area === area.value),
+    selectedCells.value.filter(
+      (cell) =>
+        metric.value === 'available' ||
+        property.value === '车位' ||
+        !area.value ||
+        cell.area === area.value,
+    ),
     dimension.value,
     metric.value,
   ).sort((a, b) => b.value - a.value),
@@ -70,7 +87,11 @@ const organizationData = computed(() =>
 const colors = ['#269dff', '#ffca40', '#50c878', '#ff7178', '#00bfae', '#c5a6e7'];
 function selectProperty(name: string) {
   property.value = property.value === name ? '' : name;
+  area.value = '';
 }
+watch(metric, () => {
+  area.value = '';
+});
 const donut = computed<EChartsOption>(() => ({
   color: colors,
   legend: { show: false },
@@ -160,7 +181,7 @@ const donut = computed<EChartsOption>(() => ({
 }));
 function barOption(data: { name: string; value: number }[], selectable = false): EChartsOption {
   const plotData = data.map((row) => ({ ...row, average: false }));
-  if (data.length) {
+  if (data.length && !(selectable && property.value === '车位')) {
     plotData.splice(Math.ceil(data.length / 2), 0, {
       name: selectable ? '面积段均值' : `${dimensionLabels[dimension.value]}均值`,
       value: data.reduce((sum, row) => sum + row.value, 0) / data.length,
@@ -206,7 +227,11 @@ function barOption(data: { name: string; value: number }[], selectable = false):
           ...row,
           itemStyle: {
             color: '#2873ed',
-            opacity: row.average ? 0.25 : selectable && area.value && row.name !== area.value ? 0.6 : 1,
+            opacity: row.average
+              ? 0.25
+              : selectable && area.value && row.name !== area.value
+                ? 0.6
+                : 1,
             borderRadius: [5, 5, 0, 0],
             borderWidth: row.average ? 1 : 0,
             borderType: 'dashed',
@@ -237,7 +262,7 @@ function barOption(data: { name: string; value: number }[], selectable = false):
 const areaOption = computed(() => barOption(areaData.value, true));
 const organizationOption = computed(() => barOption(organizationData.value));
 function selectArea(name: string) {
-  if (areaBands.includes(name)) area.value = area.value === name ? '' : name;
+  if (areaData.value.some((row) => row.name === name)) area.value = area.value === name ? '' : name;
 }
 </script>
 <template>
@@ -254,8 +279,14 @@ function selectArea(name: string) {
         {{ name }}
       </button>
     </div>
-    <p class="distribution-hint">点击业态查看面积段分布，点击面积段查看对应组织分布</p>
-    <div class="distribution-grid">
+    <p class="distribution-hint">
+      {{
+        metric === 'available'
+          ? '点击业态查看对应组织可售套数'
+          : '点击业态查看面积段分布，点击面积段查看对应组织分布'
+      }}
+    </p>
+    <div class="distribution-grid" :class="{ 'available-distribution': metric === 'available' }">
       <div ref="compositionHost" class="property-composition">
         <BaseChart
           :option="donut"
@@ -270,7 +301,7 @@ function selectArea(name: string) {
           <path d="M4 10h12M11 5l5 5-5 5" />
         </svg>
       </span>
-      <section class="distribution-chart">
+      <section v-if="metric !== 'available'" class="distribution-chart">
         <header>
           <h3>{{ property || '全部业态' }} · {{ metricTitle }} · 面积段分析</h3>
         </header>
@@ -282,14 +313,17 @@ function selectArea(name: string) {
           @select="selectArea"
         />
       </section>
-      <span class="distribution-arrow" aria-hidden="true">
+      <span v-if="metric !== 'available'" class="distribution-arrow" aria-hidden="true">
         <svg viewBox="0 0 20 20" fill="none">
           <path d="M4 10h12M11 5l5 5-5 5" />
         </svg>
       </span>
       <section class="distribution-chart">
         <header>
-          <h3>{{ area || '全部面积段' }} · {{ metricTitle }}</h3>
+          <h3>
+            {{ metric === 'available' ? property || '全部业态' : area || '全部面积段' }} ·
+            {{ metricTitle }}
+          </h3>
           <el-radio-group
             v-if="dimensions.length > 1"
             v-model="dimension"
@@ -359,6 +393,9 @@ function selectArea(name: string) {
 .distribution-chart {
   min-width: 0;
 }
+.distribution-grid.available-distribution {
+  grid-template-columns: minmax(240px, 0.9fr) 24px minmax(0, 2fr);
+}
 .distribution-chart {
   border: 1px solid #e1e8f3;
   border-radius: 8px;
@@ -404,7 +441,8 @@ function selectArea(name: string) {
     height: auto;
     min-height: 354px;
   }
-  .distribution-grid {
+  .distribution-grid,
+  .distribution-grid.available-distribution {
     grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1fr);
   }
   .distribution-arrow {
@@ -415,7 +453,8 @@ function selectArea(name: string) {
   }
 }
 @media (max-width: 650px) {
-  .distribution-grid {
+  .distribution-grid,
+  .distribution-grid.available-distribution {
     grid-template-columns: minmax(0, 1fr);
   }
 }

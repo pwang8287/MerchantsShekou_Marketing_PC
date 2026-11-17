@@ -114,12 +114,25 @@ function conversionClass(row: AggregateRow, column: ConversionColumn) {
   const difference = rate - headquartersRate;
   return difference > 1e-9 ? 'rate-above' : difference < -1e-9 ? 'rate-below' : '';
 }
+function averageReceptionMinutes(row: AggregateRow): number | null {
+  let people = 0;
+  let minutes = 0;
+  for (const record of row.records) {
+    const count = record.visitPeople ?? record.visits;
+    const seed = [...record.id].reduce((value, char) => (value * 31 + char.charCodeAt(0)) % 100003, 7);
+    // Stable simulated reception duration, weighted by visitors in the selected range.
+    people += count;
+    minutes += count * (20 + (seed % 71));
+  }
+  return people ? minutes / people : null;
+}
 const channels = computed(() =>
   groupRows(store.filtered, 'channel').map((row) => ({
     ...row,
     stageValue: row[selected.value.key],
     share: total.value ? (row[selected.value.key] / total.value) * 100 : null,
     stageCost: row[selected.value.key] ? (row.fee * 10000) / row[selected.value.key] : null,
+    receptionMinutes: averageReceptionMinutes(row),
   })),
 );
 const unsortedChannelTableRows = computed(() => {
@@ -132,6 +145,7 @@ const unsortedChannelTableRows = computed(() => {
           stageValue: total.value / channels.value.length,
           share: total.value ? 100 / channels.value.length : null,
           stageCost: averageChannelValue(channels.value, (row) => row.stageCost),
+          receptionMinutes: averageChannelValue(channels.value, (row) => row.receptionMinutes),
         },
       ]
     : channels.value;
@@ -342,6 +356,18 @@ const structure = computed<EChartsOption>(() => {
                   >
                   <template #default="{ row }">{{
                     row.stageCost === null ? '—' : fmt(row.stageCost, 2)
+                  }}</template>
+                </el-table-column>
+                <el-table-column
+                  v-if="selected.key === 'visitPeople'"
+                  label="平均接待时长"
+                  prop="receptionMinutes"
+                  sortable="custom"
+                  :min-width="125"
+                  align="right"
+                >
+                  <template #default="{ row }">{{
+                    row.receptionMinutes === null ? '—' : `${fmt(row.receptionMinutes, 2)} 分钟`
                   }}</template>
                 </el-table-column>
                 <el-table-column
