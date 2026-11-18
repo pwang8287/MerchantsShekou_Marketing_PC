@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ArrowRight } from '@element-plus/icons-vue';
 import type { EChartsOption } from 'echarts';
@@ -14,6 +14,7 @@ import {
   type AttributionComparison,
 } from '../../../utils/conversionAttribution';
 import { fmt } from '../../../utils/metrics';
+import { channelRankingDimensions } from '../../../utils/channelRanking';
 const props = defineProps<{ stage: { key: ConversionStageKey; name: string; unit: string } }>();
 const store = useDashboardStore();
 const route = useRoute();
@@ -24,12 +25,25 @@ const comparisonMode = ref<AttributionComparison>('mom');
 const isYearPeriod = computed(() => store.filter.periodType === 'year');
 const effectiveComparison = computed(() => (isYearPeriod.value ? 'yoy' : comparisonMode.value));
 const comparisonLabel = computed(() => (effectiveComparison.value === 'yoy' ? '同比' : '环比'));
-const dimensions = [
+const dimensionOptions = [
   { key: 'channel', label: '渠道' },
   { key: 'group', label: '城市群' },
-  { key: 'organization', label: '城市公司' },
+  { key: 'organization', label: '城市' },
   { key: 'project', label: '项目' },
 ] as const;
+const dimensions = computed(() => {
+  const available: AttributionDimension[] = isProjectDetail.value
+    ? ['channel']
+    : ['channel', ...channelRankingDimensions(store.filter, store.cityScope)];
+  return dimensionOptions.filter((item) => available.includes(item.key));
+});
+watch(
+  dimensions,
+  (available) => {
+    if (!available.some((item) => item.key === dimension.value)) dimension.value = 'channel';
+  },
+  { immediate: true, flush: 'sync' },
+);
 const analysis = computed(() =>
   conversionAttribution(
     store.rows,
