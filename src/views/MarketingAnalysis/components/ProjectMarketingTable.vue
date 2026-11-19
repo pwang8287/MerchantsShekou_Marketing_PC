@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Download, Search } from '@element-plus/icons-vue';
 import type { DashboardFilter, MarketingPerformanceMetric } from '../../../types';
 import { useDashboardStore } from '../../../stores/dashboard';
@@ -65,6 +65,22 @@ const store = useDashboardStore();
 const analysisFilter = computed(() => props.filter || store.filter);
 const sourceRows = computed(() => props.rows || store.rows);
 const advisorMode = computed(() => props.advisorList || !!store.projectScope);
+const panelElement = ref<HTMLElement>();
+const tableWidth = ref(1200);
+let tableObserver: ResizeObserver | undefined;
+onMounted(() => {
+  tableObserver = new ResizeObserver(() => {
+    const table = panelElement.value?.querySelector('.el-table');
+    if (table) tableWidth.value = table.clientWidth;
+  });
+  if (panelElement.value) tableObserver.observe(panelElement.value);
+});
+onBeforeUnmount(() => tableObserver?.disconnect());
+// 按可用宽度分配各列，保留项目名称和长数值列的相对空间。
+function projectColumnWidth(weight: number) {
+  const totalWeight = 150 + 60 + columns.value.reduce((sum, column) => sum + column.width, 0);
+  return Math.floor((Math.max(0, tableWidth.value - 2) * weight) / totalWeight);
+}
 const showAdvisorTabs = computed(() => !!store.projectScope && !props.advisorList);
 const advisorTab = ref<'advisor' | 'self'>('advisor');
 const selfChannelMode = computed(() => showAdvisorTabs.value && advisorTab.value === 'self');
@@ -212,6 +228,9 @@ function display(row: TableRow, key: TableKey) {
 function onSort(value: { prop: TableKey; order: string | null }) {
   sort.value = value;
 }
+function stageLabel(status?: ProjectSalesStatus) {
+  return status === '新开盘' ? '新盘' : status === '持续销售' ? '持销' : status || '-';
+}
 function download() {
   exportCsv(
     tableTitle.value,
@@ -219,18 +238,20 @@ function download() {
       nameLabel.value,
       ...(props.advisorList ? ['项目'] : []),
       ...columns.value.map((c) => `${c.label}（${c.unit}）`),
+      ...(!advisorMode.value ? ['项目阶段'] : []),
     ],
     sorted.value.map((row) => [
       row.name,
       ...(props.advisorList ? [row.records[0]?.project || ''] : []),
       ...columns.value.map((c) => display(row, c.key)),
+      ...(!advisorMode.value ? [stageLabel(row.salesStatus)] : []),
     ]),
     [search.value.trim() || '全部', ...(!advisorMode.value ? [salesStatus.value] : [])],
   );
 }
 </script>
 <template>
-  <section class="panel table-panel project-data-table">
+  <section ref="panelElement" class="panel table-panel project-data-table">
     <header class="panel-head">
       <div>
         <div
@@ -295,7 +316,7 @@ function download() {
       @sort-change="onSort"
       :empty-text="advisorMode ? '当前筛选条件暂无顾问数据' : '当前筛选条件暂无项目数据'"
     >
-      <el-table-column :label="nameLabel" prop="name" min-width="176" show-overflow-tooltip
+      <el-table-column :label="nameLabel" prop="name" :width="!advisorMode ? projectColumnWidth(150) : undefined" :min-width="advisorMode ? 176 : undefined" show-overflow-tooltip
         ><template #default="{ row }"
           ><span v-if="selfChannelMode">{{ row.name }}</span>
           <button
@@ -329,7 +350,8 @@ function download() {
         :key="column.key"
         :prop="column.key"
         :label="column.label"
-        :min-width="column.width"
+        :width="!advisorMode ? projectColumnWidth(column.width) : undefined"
+        :min-width="advisorMode ? column.width : undefined"
         align="right"
         sortable="custom"
         ><template #header
@@ -347,6 +369,11 @@ function download() {
           ></template
         ></el-table-column
       >
+      <el-table-column v-if="!advisorMode" label="项目阶段" prop="salesStatus" class-name="project-stage-cell" :width="projectColumnWidth(60)" align="center">
+        <template #default="{ row }">
+          <span class="project-stage-tag">{{ stageLabel(row.salesStatus) }}</span>
+        </template>
+      </el-table-column>
     </el-table>
     <footer class="table-footer">
       <span
@@ -365,6 +392,28 @@ function download() {
   </section>
 </template>
 <style scoped>
+.project-stage-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid #dce5f1;
+  border-radius: 4px;
+  background: #fafbfc;
+  color: #1c2b37;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.project-data-table :deep(.el-table td.project-stage-cell .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  overflow: visible;
+  text-overflow: clip;
+}
+.project-stage-cell .project-stage-tag {
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
 .advisor-data-tabs {
   display: inline-flex;
   gap: 8px;
