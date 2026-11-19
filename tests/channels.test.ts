@@ -41,17 +41,25 @@ const f: DashboardFilter = {
 };
 const tree = channelTree(records);
 assert.equal(tree.length, 7);
+assert.ok(filterRows(records, { ...f, channel: '老带新' }).length > 0);
 const online = tree.find((n) => n.label === '线上获客')!;
-const wechat = online.children!.find((n) => n.label === '微信')!;
-assert.equal(wechat.children!.length, 4);
+assert.deepEqual(online.children!.map((n) => n.label), ['抖音', '腾讯', '百度', '字节', '安居客', '其他']);
+assert.ok(records.every((r) => !['微信', '小红书', '快手'].includes(r.channel) && !['微信', '小红书', '快手'].includes(r.channelObject)));
+for (const id of ['online-tencent', 'online-baidu', 'online-bytedance']) {
+  const platformRows = filterRows(records, { ...f, channel: '线上获客', channelObject: id });
+  assert.ok(platformRows.length > 0, `${id} must have filterable mock data`);
+  assert.ok(platformRows.every((r) => r.channelObjectId === id));
+}
+const tencent = online.children!.find((n) => n.label === '腾讯')!;
+assert.equal(tencent.children!.length, 4);
 const chosen = filterRows(records, {
   ...f,
   channel: '线上获客',
-  channelObject: 'online-wechat',
-  channelDetail: 'online-wechat-0',
+  channelObject: 'online-tencent',
+  channelDetail: 'online-tencent-0',
 });
 assert.ok(chosen.length > 0);
-assert.ok(chosen.every((r) => r.channelObject === '微信' && r.channelDetail === '微信 · 视频号'));
+assert.ok(chosen.every((r) => r.channelObject === '腾讯' && r.channelDetail === '腾讯 · 腾讯广告表单'));
 const selected = filterRows(records, f),
   total = summarize(selected);
 for (const dimension of ['channel', 'channelObject', 'channelDetail'] as const) {
@@ -83,7 +91,7 @@ for (const result of [categories, objects, details])
   );
 const platform = buildNineGrid(
   records,
-  { ...f, channel: '线上获客', channelObject: 'online-wechat' },
+  { ...f, channel: '线上获客', channelObject: 'online-tencent' },
   'channel',
   'yoy',
   t,

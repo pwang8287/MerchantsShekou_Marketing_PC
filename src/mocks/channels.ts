@@ -51,9 +51,9 @@ export const channelCatalog: ChannelCategory[] = [
     name: '线上获客',
     objects: [
       object('online-douyin', '抖音', ['短视频留资', '直播留资', '房产小程序']),
-      object('online-redbook', '小红书', ['内容笔记留资', '搜索留资', '私信咨询']),
-      object('online-wechat', '微信', ['视频号', '朋友圈', '公众号', '小程序']),
-      object('online-kuaishou', '快手', ['房产直播', '短视频咨询']),
+      object('online-tencent', '腾讯', ['腾讯广告表单', '视频号广告', '朋友圈广告', '小程序留资']),
+      object('online-baidu', '百度', ['搜索推广', '信息流留资', '地图找房咨询']),
+      object('online-bytedance', '字节', ['巨量引擎表单', '今日头条信息流']),
       object('online-anjuke', '安居客', ['楼盘详情留资', '在线咨询']),
       object('online-other', '其他', ['其他线上平台留资']),
     ],

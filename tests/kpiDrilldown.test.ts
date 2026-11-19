@@ -149,8 +149,8 @@ store.filter = {
   region: '华南区域',
   city: '深圳',
   channel: '线上获客',
-  channelObject: 'online-wechat',
-  channelDetail: 'online-wechat-0',
+  channelObject: 'online-tencent',
+  channelDetail: 'online-tencent-0',
   customer: '改善客群',
 };
 for (const key of ['amount', 'contracts', 'collection', 'completion'] as KpiKey[]) {
@@ -163,7 +163,7 @@ for (const key of ['amount', 'contracts', 'collection', 'completion'] as KpiKey[
       (r) =>
         r.city === '深圳' &&
         r.channel === '线上获客' &&
-        r.channelDetailId === 'online-wechat-0' &&
+        r.channelDetailId === 'online-tencent-0' &&
         r.customer === '改善客群',
     ),
   );
